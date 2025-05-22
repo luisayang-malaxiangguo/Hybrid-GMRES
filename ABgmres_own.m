@@ -1,5 +1,5 @@
 function [x, error_norm, residual_norm, niters] = ABgmres_own(A, B, b, x_true, tol, maxit)
-%ABGMRES_OWN  Solve A*x = b using AB-GMRES (right-preconditioned GMRES)
+%ABGMRES_OWN  Solve AB*x = b using AB-GMRES (right-preconditioned GMRES)
 %
 %   [x, error_norm, residual_norm, niters] =
 %       ABgmres_own(A, B, b, tol, maxit)
@@ -19,11 +19,10 @@ function [x, error_norm, residual_norm, niters] = ABgmres_own(A, B, b, x_true, t
 %     niters          – number of iterations actually performed
 
     %----- set up and defaults -----
-    if nargin<4 || isempty(tol),    tol    = 1e-6;        end
-    if nargin<5 || isempty(maxit),  maxit  = size(A,1);   end
+   % if nargin<4 || isempty(tol),    tol    = 1e-6;        end
+    %if nargin<5 || isempty(maxit),  maxit  = size(A,1);   end
 
-    % compute exact solution for error tracking
-    %x_true = A \ b;
+
 
     % initial u‐vector is zero → x0 = B*u0 = 0
     m = size(A,1);

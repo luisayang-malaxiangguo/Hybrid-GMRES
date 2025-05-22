@@ -1,5 +1,5 @@
 function [x, error_norm, residual_norm, niters] = gmres_own(A, b, x_true, tol, maxit)
-%GMRES_OWN  Solve A*x = b using GMRES
+%GMRES_OWN  Solve A'A*x = A'b using GMRES
 %
 %   [x, error_norm, residual_norm] =
 %     gmres_own(A, b, tol, maxit)
@@ -25,11 +25,8 @@ function [x, error_norm, residual_norm, niters] = gmres_own(A, b, x_true, tol, m
 %        maxit  = size(A,1);
 %    end
 
-%we can remove lines 21--26 if we input manually tol and maxtit
+% can remove lines 21--26 if we input manually tol and maxtit
 
-
-    % Compute exact/true solution
-    %x_true = A \ b;
 
     n = size(A,1);
     x = zeros(n,1);
