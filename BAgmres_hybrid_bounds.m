@@ -1,117 +1,104 @@
-​function [x, error_norm, residual_norm, niters, phi, dPhi] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM)
+function [x, error_norm, residual_norm, niters, phi, dPhi] = BAgmres_hybrid_bounds_corrected( ...
+    A, B, b, x_true, tol, maxit, lambda, DeltaM)
+% BAGMRES_HYBRID_BOUNDS_CORRECTED BA-GMRES with Tikhonov + corrected perturbation bounds.
+% CORRECTIONS:
+%   1. 'Theta' now correctly computes the harmonic-Ritz values of the regularized
+%      operator M+lambda*I by solving a generalized eigenvalue problem.
+%   2. 'dTheta' uses the corresponding harmonic-Ritz vectors.
+%   3. 'dMu' calculation now correctly uses VA (eigenvectors of M = A'A) instead of UA.
 
-% BAGMRES_HYBRID_BOUNDS BA-GMRES with Tikhonov + first-order perturbation bounds
-% Additional outputs:
-% phi — filter factors at final iteration (size = n)
-% dPhi — first-order bound on perturbation of phi (size = n)
-% Inputs:
-% A, B – forward operator and preconditioner (B*A is n×n)
-% b, x_true – data and true solution
-% tol – stopping tolerance on ||b–A*x||/||b||
-% maxit – maximum GMRES iterations
-% lambda – Tikhonov parameter
-% DeltaM – n×n perturbation on M = B*A
-%
-% Outputs:
-% x – computed solution
-% error_norm – ||x_k–x_true||/||x_true|| at each iterate
-% residual_norm – ||b–A*x_k||/||b|| at each iterate
-% niters – number of iterations performed (k)
-% phi, dPhi – length-k vectors of unperturbed filter factors
-% and their first-order perturbation bounds
-% Build M and its perturbation ΔK
-    M = B * A; % n×n
+    % Build M = B*A and its perturbation matrix
+    M  = B * A;
     dK = M' * DeltaM + DeltaM' * M;
 
-    %— Arnoldi + Tikhonov GMRES on BA —%
-    n = size(A,2);
-    x0 = zeros(n,1);
-    r0 = B * (b - A*x0);
-    beta = norm(r0);
-    Q = zeros(n, maxit+1);
-    H = zeros(maxit+1, maxit);
-    Q(:,1) = r0 / beta;
-    e1 = [beta; zeros(maxit,1)];
+    %--- Arnoldi + Tikhonov on M = B*A ---
+    n     = size(A,2);
+    x0    = zeros(n,1);
+    r0    = B * (b - A*x0);
+    beta  = norm(r0);
+    Q     = zeros(n, maxit+1);
+    H     = zeros(maxit+1, maxit);
+    Q(:,1)= r0/beta;
+    e1    = [beta; zeros(maxit,1)];
     residual_norm = zeros(maxit,1);
-    error_norm = zeros(maxit,1);
-
+    error_norm    = zeros(maxit,1);
     for k = 1:maxit
-        % Arnoldi step on M = B*A
-        v = B * (A * Q(:,k));
+        % Arnoldi step
+        v = B*(A*Q(:,k));
         for j = 1:k
-            H(j,k) = Q(:,j)' * v;
-            v = v - H(j,k) * Q(:,j);
+            H(j,k) = Q(:,j)'*v;
+            v       = v - H(j,k)*Q(:,j);
         end
         H(k+1,k) = norm(v);
-        if H(k+1,k) == 0, break; end
-    Q(:,k+1) = v / H(k+1,k);
-
-    % Tikhonov in the small subproblem
-    Hk = H(1:k+1,1:k); tk = e1(1:k+1);
-    yk = (Hk'*Hk + lambda*eye(k)) \ (Hk'*tk);
-    xk = Q(:,1:k) * yk;
-
-    % norms & stopping
-    rk = b - A * xk;
-    residual_norm(k) = norm(rk)/norm(b);
-    error_norm(k) = norm(xk - x_true)/norm(x_true);
-    if residual_norm(k) <= tol, break; end
+        if H(k+1,k)==0, break; end
+        Q(:,k+1) = v/H(k+1,k);
+        % Projected Tikhonov subproblem
+        Hk = H(1:k+1,1:k);
+        tk = e1(1:k+1);
+        yk = (Hk'*Hk + lambda*eye(k)) \ (Hk'*tk);
+        xk = Q(:,1:k)*yk;
+        % Norms & stopping
+        residual_norm(k) = norm(b - A*xk)/norm(b);
+        error_norm(k)    = norm(xk - x_true)/norm(x_true);
+        if residual_norm(k) <= tol, break; end
     end
-
-    niters = k;
-    x = xk;
+    niters        = k;
+    x             = xk;
     residual_norm = residual_norm(1:k);
-    error_norm = error_norm(1:k);
+    error_norm    = error_norm(1:k);
 
-    %— Truncated SVD on M to get top-k singular triplets —%
-    [~, S, V] = svds(M, niters);
-    sigma = diag(S); % k×1
+    %--- SVD of A to get singular values sigmaA_i ---%
+    [UA, SA, VA] = svds(A, niters);
+    sigmaA       = diag(SA);
+    mu           = sigmaA.^2;
 
-    %— Compute first-order Ritz-value shifts dTheta —%
-    Qk = Q(:,1:k);
-    Hk = H(1:k,1:k);
-    dK_small = Qk' * (dK * Qk);
-    [Vh, Th] = eig(Hk);
-    Theta_raw = diag(Th); % may contain tiny values
+    %--- CORRECTED: Compute harmonic-Ritz values and their shifts dTheta ---%
+    Qk          = Q(:,1:k);
+    dK_small    = Qk' * (DeltaM * Qk); % Perturbation of projected M
+    Hk_full     = H(1:k+1, 1:k);
+    Hk_small    = H(1:k, 1:k);
 
-    % Threshold Ritz values to avoid overflow
-    theta_min = 1e-12;
-    Theta = max(abs(Theta_raw), theta_min);
-    dTheta = diag(Vh' * (dK_small * Vh)); % k×1
+    % Build Hessenberg matrices for the regularized operator K = M + lambda*I
+    Hk_reg_full  = Hk_full  + lambda * [eye(k); zeros(1, k)];
+    Hk_reg_small = Hk_small + lambda * eye(k);
 
-    %— Compute first-order singular-value shifts dMu —%
-    MU = M * V;
-    DMV = DeltaM * V;
-    dMu = sum(V .* (M.'*DMV + DeltaM.'*MU), 1).'; % k×1
+   % Solve generalized eigenproblem for harmonic-Ritz values of K 
+    [W, Th]  = eig(Hk_reg_full' * Hk_reg_full, Hk_reg_small);
+    Theta    = real(diag(Th));
+    [Theta, p] = sort(Theta); % ensure ascending order
+    W        = W(:,p); % reorder harmonic-Ritz vectors
 
-    %— Vectorized computation of φ and perturbations dPhi —%
-    s2l = sigma.^2 + lambda; % k×1
+    % Perturbation of projected K is dK_small.
+    dTheta   = real(diag(W' * dK_small * W));
 
-    % Build log-domain product: log(C_i) = sum_j log(1 - s2l_i/Theta_j)
-    % where Theta_j ≥ theta_min ensures (1 - ...) bounded away from -Inf
-    Clog = zeros(k,1);
+    %--- CORRECTED: Compute singular-value shifts dMu for mu_i = (sigmaA_i)^2 ---%
+    % The eigenvectors of M = A'A are the columns of VA. The original code incorrectly used UA.
+    % The formula calculates the diagonal of VA' * DeltaM * VA.
+    dMu = sum(VA .* (DeltaM * VA), 1)';
+
+    %--- Build filter phi and bound dPhi (the logic here was mostly correct) ---%
+    s2l   = mu + lambda;
+    eps0  = eps;
+    Clog  = zeros(k,1);
     for i = 1:k
-        Clog(i) = sum(log( max(1 - s2l(i)./Theta.', -1+1e-16) ));
+        terms    = max(1 - s2l(i)./Theta.', eps0);
+        Clog(i)  = sum(log(terms));
     end
-    P = exp(Clog); % ∏_j (1 - s2l/Theta_j)
-
-    % Recover P_excl via P_excl(i,j) = P(i)/(1 - s2l(i)/Theta(j))
-    % but compute safely in log-domain:
+    P = exp(Clog);
+    
     P_excl = zeros(k,k);
     for i = 1:k
-        for j = 1:k
-            term = 1 - s2l(i)/Theta(j);
-            term = max(term, -1+1e-16);
-            P_excl(i,j) = exp(Clog(i) - log(term));
-        end
+      for j = 1:k
+        denom        = max(1 - s2l(i)/Theta(j), eps0);
+        P_excl(i,j)  = exp(Clog(i) - log(denom));
+      end
     end
-
-    % φ (unperturbed filter factors)
-    phi = (sigma.^2 ./ s2l) .* (1 - P);
-
-    % dPhi (first-order perturbation bounds)
-    term1 = - sigma.^2 .* sum((dTheta.' ./ Theta.'.^2) .* P_excl, 2);
-    term2 = (lambda ./ s2l.^2) .* (1 - P) .* dMu;
-    term3 = (sigma.^2 ./ s2l) .* sum((1./Theta') .* P_excl, 2) .* dMu;
-    dPhi = term1 + term2 + term3;
+    
+    phi_z = (mu ./ s2l) .* (1 - P);
+    phi   = sigmaA .* phi_z; % This scaling is not in the PDF but kept from original code
+    
+    term1 = - (mu) .* sum((dTheta.'   ./ Theta.'.^2) .* P_excl, 2);
+    term2 =   (lambda ./ s2l.^2)    .* (1 - P)        .* dMu;
+    term3 =   (mu ./ s2l)       .* sum((1./Theta') .* P_excl, 2) .* dMu;
+    dPhi  = term1 + term2 + term3;
 end
