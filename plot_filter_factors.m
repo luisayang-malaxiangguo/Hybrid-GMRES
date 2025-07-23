@@ -1,131 +1,200 @@
 function plot_filter_factors()
+% Generates two figures:
+% 1. A 2x2 subplot comparing the FINAL theoretical vs. empirical filter factors.
+% 2. A combined plot showing the EVOLUTION of theoretical filter factors at k=2, 10, and 20.
 
-%   Generate shaw(32) test problem, run 4 GMRES variants with bounds,
-%   compute theoretical vs empirical filter factors, and plot them.
+%% 1) Set up Test Problem
+n = 32;
+% Select the problem to run. 'deriv2' matches the paper's figures.
+ [A, b, x_true] = deriv2(n);
+%[A, b, x_true] = shaw(n);
+%[A, b, x_true] = heat(n);
 
-  %% 1) Set up Shaw test problem
-  n = 32;
-  [A, b, x_true] = shaw(n);
-  %[A, b, x_true] = heat(n);
-  %[A, b, x_true] = deriv2(n);
-  %[A, b, x_true, ProbInfo] = PRtomo(n);
+%% 2) Algorithm Parameters
+tol     = 1e-6;
+maxit   = n;      % Run to full dimension
+lambda  = 1e-3;
+B       = A';     % Matched back-projector
+% Use a fixed seed for the random perturbation for reproducibility
+rng(0); 
+DeltaM  = 1e-5 * randn(size(A'));
 
+%% 3) Run Each Method & Collect Full Iterative History
+fprintf('Running GMRES variants...\n');
 
-  %% 2) Algorithm parameters
-  tol     = 1e-6;
-  maxit   = n;          % full dimension
-  lambda  = 1e-3;
-  B       = A';         % matched preconditioner
-  DeltaM  = 1e-5*randn(n);
+% CORRECTED: Capture all 8 outputs from each function.
+% Use '~' to ignore outputs we don't need for these specific plots.
+[x_ab,  ~,~,it_ab,  phi_ab_final,  ~, phi_ab_iter,  ~] = ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
+[x_ba,  ~,~,it_ba,  phi_ba_final,  ~, phi_ba_iter,  ~] = BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
+[x_hab, ~,~,it_hab, phi_hab_final, ~, phi_hab_iter, ~] = ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
+[x_hba, ~,~,it_hba, phi_hba_final, ~, phi_hba_iter, ~] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
 
-  %% 3) Run each method & collect phi,dPhi
-  %  (non-hybrid AB-GMRES)
-  [x_ab,~,~,it_ab, phi_ab, ~] = ...
-    ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
-  %  (non-hybrid BA-GMRES)
-  [x_ba,~,~,it_ba, phi_ba, ~] = ...
-    BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
-  %  (hybrid AB-GMRES)
-  [x_hab,~,~,it_hab, phi_hab, ~] = ...
-    ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
-  %  (hybrid BA-GMRES)
-  [x_hba,~,~,it_hba, phi_hba, ~] = ...
-    BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
+fprintf('All methods complete.\n');
 
-  %% 4) Compute empirical filters at final iterates
-  [U,S,V] = svd(A,'econ');
-  sigma   = diag(S);
-  d       = U' * b;
+%% 4) Plot 1: Final Theoretical vs. Empirical Factors (2x2 Subplot)
+fprintf('Generating final filter factor comparison plot...\n');
 
-  Phi_emp_ab  = sigma .* (V' * x_ab) ./ d;
-  Phi_emp_ba  = sigma .* (V' * x_ba) ./ d;
-  Phi_emp_hab = sigma .* (V' * x_hab) ./ d;
-  Phi_emp_hba = sigma .* (V' * x_hba) ./ d;
+% Compute empirical filters from the FINAL solution vectors
+[U,S,V] = svd(A,'econ');
+sigma   = diag(S);
+d       = U' * b;
 
-  kmax = length(sigma);
+% Ensure division by d is safe for near-zero values
+d(abs(d) < 1e-12) = 1; 
 
-  %% 5) Plot everything
- % Determine how many modes we can plot without running off the end
-k_theo = [length(phi_ab), length(phi_ba), length(phi_hab), length(phi_hba)];
-k_emp  = [length(Phi_emp_ab), length(Phi_emp_ba), length(Phi_emp_hab), length(Phi_emp_hba)];
-kmin   = min([k_theo, k_emp]);
+Phi_emp_ab  = sigma .* (V' * x_ab) ./ d;
+Phi_emp_ba  = sigma .* (V' * x_ba) ./ d;
+Phi_emp_hab = sigma .* (V' * x_hab) ./ d;
+Phi_emp_hba = sigma .* (V' * x_hba) ./ d;
 
-modes = 1:kmin;
+figure('Name', 'Final Filter Factor Comparison', 'Position', [100 100 800 600]);
 
-figure; hold on;
-  lw = 1.8;
-
-  % Theoretical
-  plot(modes, phi_ab(1:kmin),  '--','LineWidth',lw,'Color',[.2 .6 .2]);
-  plot(modes, phi_ba(1:kmin),  '-.','LineWidth',lw,'Color',[.2 .2 .6]);
-  plot(modes, phi_hab(1:kmin), '-','LineWidth',lw,'Color',[.8 .3 .3]);
-  plot(modes, phi_hba(1:kmin), ':','LineWidth',lw,'Color',[.6 .2 .6]);
-
-  % Empirical
-  plot(modes, Phi_emp_ab(1:kmin),  '-x','MarkerSize',6,'Color',[.2 .6 .2]);
-  plot(modes, Phi_emp_ba(1:kmin),  '-s','MarkerSize',6,'Color',[.2 .2 .6]);
-  plot(modes, Phi_emp_hab(1:kmin), '-d','MarkerSize',6,'Color',[.8 .3 .3]);
-  plot(modes, Phi_emp_hba(1:kmin), '-o','MarkerSize',6,'Color',[.6 .2 .6]);
-hold off;
-
-xlabel('Mode index \it{i}');
-ylabel('Filter factor / empirical filter');
-title('Theoretical vs Empirical Filter Factors');
-legend({ ...
-  'AB (theory)','BA (theory)','hAB (theory)','hBA (theory)', ...
-  'AB (emp)','BA (emp)','hAB (emp)','hBA (emp)'}, ...
-  'Location','Best');
-grid on;
-%% EMPIRICAL VS THEORICAL FILTER FACTORS SUBPLOTS
-% 5) Four subplots, theory vs empirical, guarded against length/complexity
-figure('Position',[200 200 800 600]);
-
-% 1) non‑hybrid AB
-kmin_ab = min(numel(phi_ab),  numel(Phi_emp_ab));
-i_ab    = 1:kmin_ab;
+% Subplot 1: non-hybrid AB
 subplot(2,2,1);
-plot(i_ab, real(phi_ab(1:kmin_ab)),  '--','LineWidth',1.6); hold on;
-plot(i_ab, real(Phi_emp_ab(1:kmin_ab)),'x-','MarkerSize',6);
-hold off;
-xlabel('i'); ylabel('\phi_i');
-title('AB‑GMRES (non‑hybrid)');
-legend('theoretical','empirical','Location','Best');
-grid on;
+% CORRECTED: Use the correct variable 'phi_ab_final'
+kmin = min(numel(phi_ab_final), numel(Phi_emp_ab));
+plot(1:kmin, real(phi_ab_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
+plot(1:kmin, real(Phi_emp_ab(1:kmin)), 'o-', 'MarkerSize', 4);
+hold off; grid on;
+title('AB-GMRES (non-hybrid)');
+xlabel('Mode index i'); ylabel('Filter factor \phi_i');
+legend('Theoretical', 'Empirical', 'Location', 'Best');
 
-% 2) non‑hybrid BA
-kmin_ba = min(numel(phi_ba),  numel(Phi_emp_ba));
-i_ba    = 1:kmin_ba;
+% Subplot 2: non-hybrid BA
 subplot(2,2,2);
-plot(i_ba, real(phi_ba(1:kmin_ba)),  '-.','LineWidth',1.6); hold on;
-plot(i_ba, real(Phi_emp_ba(1:kmin_ba)),'s-','MarkerSize',6);
-hold off;
-xlabel('i'); ylabel('\phi_i');
-title('BA‑GMRES (non‑hybrid)');
-legend('theoretical','empirical','Location','Best');
-grid on;
+% CORRECTED: Use the correct variable 'phi_ba_final'
+kmin = min(numel(phi_ba_final), numel(Phi_emp_ba));
+plot(1:kmin, real(phi_ba_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
+plot(1:kmin, real(Phi_emp_ba(1:kmin)), 'o-', 'MarkerSize', 4);
+hold off; grid on;
+title('BA-GMRES (non-hybrid)');
+xlabel('Mode index i'); ylabel('Filter factor \phi_i');
+legend('Theoretical', 'Empirical', 'Location', 'Best');
 
-% 3) hybrid AB
-kmin_hab = min(numel(phi_hab),  numel(Phi_emp_hab));
-i_hab    = 1:kmin_hab;
+% Subplot 3: hybrid AB
 subplot(2,2,3);
-plot(i_hab, real(phi_hab(1:kmin_hab)), '-','LineWidth',1.6); hold on;
-plot(i_hab, real(Phi_emp_hab(1:kmin_hab)),'d-','MarkerSize',6);
-hold off;
-xlabel('i'); ylabel('\phi_i');
-title('AB‑GMRES (hybrid)');
-legend('theoretical','empirical','Location','Best');
-grid on;
+% CORRECTED: Use the correct variable 'phi_hab_final'
+kmin = min(numel(phi_hab_final), numel(Phi_emp_hab));
+plot(1:kmin, real(phi_hab_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
+plot(1:kmin, real(Phi_emp_hab(1:kmin)), 'o-', 'MarkerSize', 4);
+hold off; grid on;
+title('AB-GMRES (hybrid)');
+xlabel('Mode index i'); ylabel('Filter factor \phi_i');
+legend('Theoretical', 'Empirical', 'Location', 'Best');
 
-% 4) hybrid BA
-kmin_hba = min(numel(phi_hba), numel(Phi_emp_hba));
-i_hba    = 1:kmin_hba;
+% Subplot 4: hybrid BA
 subplot(2,2,4);
-plot(i_hba, real(phi_hba(1:kmin_hba)), ':','LineWidth',1.6); hold on;
-plot(i_hba, real(Phi_emp_hba(1:kmin_hba)),'o-','MarkerSize',6);
-hold off;
-xlabel('i'); ylabel('\phi_i');
-title('BA‑GMRES (hybrid)');
-legend('theoretical','empirical','Location','Best');
-grid on;
+% CORRECTED: Use the correct variable 'phi_hba_final'
+kmin = min(numel(phi_hba_final), numel(Phi_emp_hba));
+plot(1:kmin, real(phi_hba_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
+plot(1:kmin, real(Phi_emp_hba(1:kmin)), 'o-', 'MarkerSize', 4);
+hold off; grid on;
+title('BA-GMRES (hybrid)');
+xlabel('Mode index i'); ylabel('Filter factor \phi_i');
+legend('Theoretical', 'Empirical', 'Location', 'Best');
+
+%% Theoretical Filter Factors at k
+k_values = [2, 16, 32];
+figure('Name', 'Evolution of Theoretical Filter Factors', 'Position', [100 100 1200 450]);
+
+% --- MODIFICATION: Use tiledlayout for better spacing ---
+t = tiledlayout(1, length(k_values), 'TileSpacing', 'compact', 'Padding', 'compact');
+title(t, 'Evolution of Theoretical Filter Factors for Different Iterations (k)', 'FontSize', 14);
+
+% Loop over the k-values to create each subplot
+for i = 1:length(k_values)
+    k = k_values(i);
+    
+    % --- MODIFICATION: Use nexttile instead of subplot ---
+    nexttile; 
+    hold on;
+    lw = 1.6;
+
+    % Plot each method for the current k, with safety checks
+    if k <= it_ab
+        plot(1:k, real(phi_ab_iter{k}), '--', 'LineWidth', lw, 'DisplayName', 'non-hybrid AB');
+    end
+    if k <= it_ba
+        plot(1:k, real(phi_ba_iter{k}), ':', 'LineWidth', lw, 'DisplayName', 'non-hybrid BA');
+    end
+    if k <= it_hab
+        plot(1:k, real(phi_hab_iter{k}), '-', 'LineWidth', lw, 'DisplayName', 'hybrid AB');
+    end
+    if k <= it_hba
+        plot(1:k, real(phi_hba_iter{k}), '-.', 'LineWidth', lw, 'DisplayName', 'hybrid BA');
+    end
+    
+    hold off;
+    grid on;
+    xlabel('Mode index i');
+    ylabel('Filter factor \phi_{i,k}');
+    title(sprintf('k = %d', k)); % Simpler title for each subplot
+    legend('Location', 'Best');
+    ylim([-0.2, 1.2]); % Consistent y-axis for comparison
+end
+
+%% Evolution for Each Method
+k_values = [2, 16, 32];
+figure('Name', 'Filter Factor Evolution per Method', 'Position', [100 100 900 700]);
+
+% Use tiledlayout for clean spacing
+t = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+title(t, 'Evolution of Theoretical Filter Factors for Each GMRES Variant', 'FontSize', 14);
+
+% --- Plot 1: non-hybrid AB ---
+nexttile;
+hold on;
+for k = k_values
+    if k <= it_ab
+        plot(1:k, real(phi_ab_iter{k}), '.-', 'LineWidth', 1.5, 'MarkerSize', 10, 'DisplayName', sprintf('k = %d', k));
+    end
+end
+hold off; grid on;
+title('non-hybrid AB-GMRES');
+xlabel('Mode index i'); ylabel('Filter factor \phi_{i,k}');
+legend('Location', 'Best');
+ylim([-0.5, 1.5]);
+
+% --- Plot 2: non-hybrid BA ---
+nexttile;
+hold on;
+for k = k_values
+    if k <= it_ba
+        plot(1:k, real(phi_ba_iter{k}), '.-', 'LineWidth', 1.5, 'MarkerSize', 10, 'DisplayName', sprintf('k = %d', k));
+    end
+end
+hold off; grid on;
+title('non-hybrid BA-GMRES');
+xlabel('Mode index i');
+legend('Location', 'Best');
+ylim([-0.5, 1.5]);
+
+% --- Plot 3: hybrid AB ---
+nexttile;
+hold on;
+for k = k_values
+    if k <= it_hab
+        plot(1:k, real(phi_hab_iter{k}), '.-', 'LineWidth', 1.5, 'MarkerSize', 10, 'DisplayName', sprintf('k = %d', k));
+    end
+end
+hold off; grid on;
+title('hybrid AB-GMRES');
+xlabel('Mode index i'); ylabel('Filter factor \phi_{i,k}');
+legend('Location', 'Best');
+ylim([-0.5, 1.5]);
+
+% --- Plot 4: hybrid BA ---
+nexttile;
+hold on;
+for k = k_values
+    if k <= it_hba
+        plot(1:k, real(phi_hba_iter{k}), '.-', 'LineWidth', 1.5, 'MarkerSize', 10, 'DisplayName', sprintf('k = %d', k));
+    end
+end
+hold off; grid on;
+title('hybrid BA-GMRES');
+xlabel('Mode index i');
+legend('Location', 'Best');
+ylim([-0.5, 1.5]);
 
 end

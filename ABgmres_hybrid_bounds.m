@@ -1,11 +1,7 @@
-function [x, error_norm, residual_norm, niters, phi, dPhi] = ABgmres_hybrid_bounds_patched( ...
+function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter, dphi_iter] = ABgmres_hybrid_bounds( ...
     A, B, b, x_true, tol, maxit, lambda, DeltaM)
-% ABGMRES_HYBRID_BOUNDS_PATCHED AB-GMRES with Tikhonov + fully corrected perturbation bounds.
-% PATCH NOTES:
-%   1. Perturbation dK is now correctly formed as `A * DeltaM`.
-%   2. Harmonic-Ritz values `Theta` are now computed using the explicit pencil
-%      `P = Hk + h^2*Hk'\(ek*ek')`, then shifted by lambda, as specified.
-%   3. Perturbations `dMu` are now computed in the same basis `W` as `dTheta`.
+% ABGMRES_HYBRID_BOUNDS AB-GMRES with Tikhonov regularization and perturbation bounds.
+% This function returns filter factors (phi) and their perturbation bounds (dPhi) at each iteration.
 
     %--- Arnoldi + Tikhonov ---
     m     = size(A,1);
@@ -18,6 +14,15 @@ function [x, error_norm, residual_norm, niters, phi, dPhi] = ABgmres_hybrid_boun
     e1    = [beta; zeros(maxit,1)];
     residual_norm = zeros(maxit,1);
     error_norm    = zeros(maxit,1);
+    
+    % Initialize cell arrays
+    phi_iter = cell(maxit, 1);
+    dphi_iter = cell(maxit, 1);
+
+    % --- EFFICIENT SVD: Calculate only ONCE before the loop ---
+    [UA, SA, ~] = svds(A, maxit); % Need UA for this method
+    sigmaA = diag(SA);
+    mu_full = sigmaA.^2;
 
     for k = 1:maxit
         % Arnoldi step on M = A*B
@@ -29,74 +34,89 @@ function [x, error_norm, residual_norm, niters, phi, dPhi] = ABgmres_hybrid_boun
         H(k+1,k) = norm(v);
         if H(k+1,k) == 0, break; end
         Q(:,k+1) = v / H(k+1,k);
+        
         % Projected Tikhonov solve
         Hk = H(1:k+1,1:k);
         tk = e1(1:k+1);
         yk = (Hk'*Hk + lambda*eye(k)) \ (Hk'*tk);
         zk = Q(:,1:k)*yk;
         xk = B * zk;
+        
         % Norms & stopping
         residual_norm(k) = norm(b - A*xk)/norm(b);
         error_norm(k)    = norm(xk - x_true)/norm(x_true);
+        
+        % =====================================================================
+        % --- THIS IS THE CORRECT CALCULATION BLOCK FOR HYBRID AB-GMRES ---
+        % =====================================================================
+        
+        % Form projected perturbation
+        Qk_current = Q(:,1:k);
+        dK_current = A * DeltaM;
+        dK_small_current = Qk_current' * dK_current * Qk_current;
+
+        % Compute harmonic-Ritz values of M + lambda*I
+        Hk_small_current = H(1:k, 1:k);
+        ek_current       = zeros(k,1);
+        ek_current(end)  = 1;
+        % Harmonic-Ritz values of the unregularized operator M
+        P_unreg = Hk_small_current + (H(k+1,k)^2) * (Hk_small_current'\(ek_current*ek_current'));
+        % The harmonic-Ritz values of K = M + lambda*I are the eigenvalues of P_unreg + lambda*I
+        P_reg = P_unreg + lambda*eye(k);
+        [W_current, D_eig] = eig(P_reg);
+        Theta_current = real(diag(D_eig));
+        [Theta_current, p_sort] = sort(Theta_current); % Ensure ascending order
+        W_current = W_current(:,p_sort);      % Reorder eigenvectors accordingly
+
+        % Compute perturbations dTheta and dMu
+        dTheta_current = real(diag(W_current' * dK_small_current * W_current));
+        dMu_current    = dTheta_current; % For AB-GMRES, the shifts are computed in the same basis.
+
+        % Truncate mu to the current size k
+        mu_current = mu_full(1:k);
+
+        % Build phi and dphi using filter factor formula from Theorem 4.5.1
+        s2l = mu_current + lambda;
+        eps0_current = eps;
+        Clog_current = zeros(k,1);
+        P_excl_current = zeros(k,k);
+        for i = 1:k
+            terms = max(1 - s2l(i)./Theta_current.', eps0_current);
+            Clog_current(i) = sum(log(terms));
+            for j = 1:k
+                denom = max(1 - s2l(i)/Theta_current(j), eps0_current);
+                P_excl_current(i,j) = exp(Clog_current(i) - log(denom));
+            end
+        end
+        P_final = exp(Clog_current);
+        
+        % CORRECT formula for HYBRID filter factor
+        phi_current = (mu_current ./ s2l) .* (1 - P_final);
+        
+        % CORRECT formula for HYBRID perturbation bound (3 terms)
+        term1 = - (mu_current) .* sum((dTheta_current.' ./ Theta_current.'.^2) .* P_excl_current, 2);
+        term2 =   (lambda ./ s2l.^2) .* (1 - P_final) .* dMu_current;
+        term3 =   (mu_current ./ s2l) .* sum((1./Theta_current') .* P_excl_current, 2) .* dMu_current;
+        dphi_current = term1 + term2 + term3;
+
+        % Store the calculated phi and dphi in our cell arrays
+        phi_iter{k} = phi_current;
+        dphi_iter{k} = dphi_current;
+
+        % Original stopping condition
         if residual_norm(k) <= tol, break; end
     end
-    niters        = k;
-    x             = xk;
+
+    niters = k;
+    x = xk;
     residual_norm = residual_norm(1:k);
-    error_norm    = error_norm(1:k);
+    error_norm = error_norm(1:k);
 
-    %--- SVD of A to get singular values sigmaA_i ---%
-    [~, SA, ~] = svds(A, niters);
-    sigmaA     = diag(SA);
-    mu         = sigmaA.^2;
+    % The final values are from the last iteration
+    phi_final = phi_iter{k};
+    dphi_final = dphi_iter{k};
 
-    %--- PATCHED: Form projected perturbation ---%
-    Qk       = Q(:,1:k);
-    dK       = A * DeltaM;
-    dK_small = Qk' * dK * Qk;
-
-    %--- PATCHED: Compute harmonic-Ritz values of M+lambda*I ---%
-    Hk_small = H(1:k, 1:k);
-    ek       = zeros(k,1);
-    ek(end)  = 1;
-
-    % Build the harmonic-Ritz pencil P for M and shift by lambda
-    P = Hk_small + (H(k+1,k)^2) * (Hk_small'\(ek*ek'));
-    P = P + lambda*eye(k);
-    
-    [W, D]     = eig(P);
-    Theta      = real(diag(D));
-    [Theta, p] = sort(Theta); % Ensure ascending order
-    W          = W(:,p);      % Reorder eigenvectors accordingly
-
-    %--- PATCHED: Compute perturbations dTheta and dMu using the same basis W ---%
-    dTheta = real(diag(W' * dK_small * W));
-    dMu    = dTheta; % For AB-GMRES, the shifts are computed in the same basis.
-
-    %--- Build filter phi and bound dPhi ---%
-    s2l   = mu + lambda;
-    eps0  = eps;
-    Clog  = zeros(k,1);
-    for i = 1:k
-        terms    = max(1 - s2l(i)./Theta.', eps0);
-        Clog(i)  = sum(log(terms));
-    end
-    P = exp(Clog);
-    
-    P_excl = zeros(k,k);
-    for i = 1:k
-      for j = 1:k
-        denom        = max(1 - s2l(i)/Theta(j), eps0);
-        P_excl(i,j)  = exp(Clog(i) - log(denom));
-      end
-    end
-    
-    phi_z = (mu ./ s2l) .* (1 - P);
-    phi   = sigmaA .* phi_z; % This scaling is not in the PDF but kept from original code
-    
-    % First-order perturbation bound using formula from Theorem 4.7.1
-    term1 = - (mu) .* sum((dTheta.'   ./ Theta.'.^2) .* P_excl, 2);
-    term2 =   (lambda ./ s2l.^2)    .* (1 - P)        .* dMu;
-    term3 =   (mu ./ s2l)       .* sum((1./Theta') .* P_excl, 2) .* dMu;
-    dPhi  = term1 + term2 + term3;
+    % Trim the cell arrays to the actual number of iterations performed
+    phi_iter = phi_iter(1:k);
+    dphi_iter = dphi_iter(1:k);
 end
