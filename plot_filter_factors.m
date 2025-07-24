@@ -6,8 +6,8 @@ function plot_filter_factors()
 %% 1) Set up Test Problem
 n = 32;
 % Select the problem to run. 'deriv2' matches the paper's figures.
- [A, b, x_true] = deriv2(n);
-%[A, b, x_true] = shaw(n);
+ %[A, b, x_true] = deriv2(n);
+[A, b, x_true] = shaw(n);
 %[A, b, x_true] = heat(n);
 
 %% 2) Algorithm Parameters
@@ -22,19 +22,17 @@ DeltaM  = 1e-5 * randn(size(A'));
 %% 3) Run Each Method & Collect Full Iterative History
 fprintf('Running GMRES variants...\n');
 
-% CORRECTED: Capture all 8 outputs from each function.
-% Use '~' to ignore outputs we don't need for these specific plots.
-[x_ab,  ~,~,it_ab,  phi_ab_final,  ~, phi_ab_iter,  ~] = ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
-[x_ba,  ~,~,it_ba,  phi_ba_final,  ~, phi_ba_iter,  ~] = BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
-[x_hab, ~,~,it_hab, phi_hab_final, ~, phi_hab_iter, ~] = ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
-[x_hba, ~,~,it_hba, phi_hba_final, ~, phi_hba_iter, ~] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
+[x_ab, ~, ~, it_ab, phi_ab_final, dphi_ab_final, phi_ab_iter,  dphi_ab_iter] = ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
+[x_ba, ~, ~, it_ba, phi_ba_final, dphi_ba_final, phi_ba_iter,  dphi_ba_iter] = BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
+[x_hab, ~, ~, it_hab, phi_hab_final, dphi_hab_final, phi_hab_iter, dphi_hab_iter] = ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
+[x_hba, ~, ~, it_hba, phi_hba_final, dphi_hba_final, phi_hba_iter, dphi_hba_iter] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
 
 fprintf('All methods complete.\n');
 
 %% 4) Plot 1: Final Theoretical vs. Empirical Factors (2x2 Subplot)
 fprintf('Generating final filter factor comparison plot...\n');
 
-% Compute empirical filters from the FINAL solution vectors
+% Compute empirical filters  
 [U,S,V] = svd(A,'econ');
 sigma   = diag(S);
 d       = U' * b;
@@ -93,7 +91,8 @@ title('BA-GMRES (hybrid)');
 xlabel('Mode index i'); ylabel('Filter factor \phi_i');
 legend('Theoretical', 'Empirical', 'Location', 'Best');
 
-%% Theoretical Filter Factors at k
+%% Plot 2: Combined Evolution of Theoretical Factors
+% Theoretical Filter Factors at k
 k_values = [2, 16, 32];
 figure('Name', 'Evolution of Theoretical Filter Factors', 'Position', [100 100 1200 450]);
 
@@ -133,7 +132,7 @@ for i = 1:length(k_values)
     ylim([-0.2, 1.2]); % Consistent y-axis for comparison
 end
 
-%% Evolution for Each Method
+%% Plot 3: Evolution for Each Method
 k_values = [2, 16, 32];
 figure('Name', 'Filter Factor Evolution per Method', 'Position', [100 100 900 700]);
 
@@ -197,4 +196,57 @@ xlabel('Mode index i');
 legend('Location', 'Best');
 ylim([-0.5, 1.5]);
 
+%% Magnitude of the Perturbation Bound
+fprintf('Generating perturbation bound magnitude plot...\n');
+
+figure('Name', 'Magnitude of Perturbation Bounds', 'Position', [100 100 900 700]);
+t_bounds = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+title(t_bounds, 'Magnitude of Perturbation Bounds $|\delta\phi_{i,k}|$', ...
+      'FontSize', 14, 'Interpreter', 'latex');
+
+colors = lines(length(k_values));
+
+%  non-hybrid AB
+ax1 = nexttile;
+plot_bound_magnitudes_tile(ax1, dphi_ab_iter, it_ab, k_values, colors, 'non-hybrid AB-GMRES');
+ylabel(ax1, 'Bound Magnitude $|\delta\phi_{i,k}|$', 'Interpreter', 'latex');
+
+%  non-hybrid BA
+ax2 = nexttile;
+plot_bound_magnitudes_tile(ax2, dphi_ba_iter, it_ba, k_values, colors, 'non-hybrid BA-GMRES');
+
+% hybrid AB
+ax3 = nexttile;
+plot_bound_magnitudes_tile(ax3, dphi_hab_iter, it_hab, k_values, colors, 'hybrid AB-GMRES');
+ylabel(ax3, 'Bound Magnitude $|\delta\phi_{i,k}|$', 'Interpreter', 'latex');
+
+% hybrid BA
+ax4 = nexttile;
+plot_bound_magnitudes_tile(ax4, dphi_hba_iter, it_hba, k_values, colors, 'hybrid BA-GMRES');
+
 end
+
+% --- MODIFIED Helper function for plotting bound MAGNITUDES ---
+function plot_bound_magnitudes_tile(ax, dphi_iter, iters, k_vals, colors, plot_title)
+    % This local function plots the MAGNITUDE of the perturbation bounds on a log scale.
+    hold(ax, 'on');
+    for i = 1:length(k_vals)
+        k = k_vals(i);
+        if k <= iters
+            % Get the magnitude of the bound. Add eps to prevent log(0) warnings.
+            dphi_k_mag = abs(real(dphi_iter{k})) + eps; 
+            indices = (1:k)';
+            
+            % Use SEMILOGY to plot the magnitude of the bound
+            semilogy(ax, indices, dphi_k_mag, '.-', 'Color', colors(i,:), 'LineWidth', 1.5, ...
+                     'MarkerSize', 12, 'DisplayName', sprintf('k = %d', k));
+        end
+    end
+    hold(ax, 'off');
+    grid on;
+    title(ax, plot_title);
+    xlabel(ax, 'Mode index i');
+    ylabel(ax, 'Bound Magnitude $|\delta\phi_{i,k}|$', 'Interpreter', 'latex');
+    legend(ax, 'Location', 'Best');
+end
+
