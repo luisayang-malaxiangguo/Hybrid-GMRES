@@ -4,91 +4,83 @@ function plot_perturbation_bound_validation()
 
 %% 1) Set up Test Problem & Parameters
 n = 32;
-[A, b, x_true] = shaw(n); % Use 'shaw' or 'deriv2'
-tol = 1e-8;
-maxit = n;
+[A, b, x_true] = shaw(n);
 lambda = 1e-3;
-B = A';
-rng(0);
-pert_magnitude = 1e-5;
-DeltaM_pert = pert_magnitude * randn(size(A'));
-DeltaM_zero = zeros(size(A'));
+k_to_plot = 30; % Choose k < n 
+maxit = k_to_plot;
+tol = 1e-8;
+rng(0); % for reproducibility
 
-%% 2) Run simulations to get perturbed and unperturbed factors
-fprintf('Running simulations for bound validation...\n');
+% Define unperturbed and perturbed back-projectors
+B_unpert = A';
+E = 1e-5 * randn(size(A)); % Create an error matrix
+B_pert = B_unpert + E';             % Create the perturbed back-projector
 
-% Run WITH perturbation
-[~, ~, ~, it_ab_p, ~, dphi_ab_p, phi_ab_p, ~] = ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM_pert);
-[~, ~, ~, it_ba_p, ~, dphi_ba_p, phi_ba_p, ~] = BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM_pert);
-[~, ~, ~, it_hab_p, ~, dphi_hab_p, phi_hab_p, ~] = ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM_pert);
-[~, ~, ~, it_hba_p, ~, dphi_hba_p, phi_hba_p, ~] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM_pert);
+% Define the total perturbation terms for AB and BA methods
+DeltaM_AB = A * E;
+DeltaM_BA = E * A;
 
-% Run WITHOUT perturbation (DeltaM = 0)
-[~, ~, ~, ~, ~, ~, phi_ab_u, ~] = ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM_zero);
-[~, ~, ~, ~, ~, ~, phi_ba_u, ~] = BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM_zero);
-[~, ~, ~, ~, ~, ~, phi_hab_u, ~] = ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM_zero);
-[~, ~, ~, ~, ~, ~, phi_hba_u, ~] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM_zero);
+%% 2) Run simulations for all four methods
+fprintf('Running simulations for k <= %d...\n', k_to_plot);
+
+% --- non-hybrid BA-GMRES ---
+[~,~,~,~,~,~, phi_ba_u, dphi_ba_bound] = BAgmres_nonhybrid_bounds(A, B_unpert, b, x_true, tol, maxit, DeltaM_BA);
+[~,~,~,~,~,~, phi_ba_p, ~]             = BAgmres_nonhybrid_bounds(A, B_pert,   b, x_true, tol, maxit, zeros(size(DeltaM_BA)));
+% --- non-hybrid AB-GMRES ---
+[~,~,~,~,~,~, phi_ab_u, dphi_ab_bound] = ABgmres_nonhybrid_bounds(A, B_unpert, b, x_true, tol, maxit, DeltaM_AB);
+[~,~,~,~,~,~, phi_ab_p, ~]             = ABgmres_nonhybrid_bounds(A, B_pert,   b, x_true, tol, maxit, zeros(size(DeltaM_AB)));
+% --- hybrid BA-GMRES ---
+[~,~,~,~,~,~, phi_hba_u, dphi_hba_bound] = BAgmres_hybrid_bounds(A, B_unpert, b, x_true, tol, maxit, lambda, DeltaM_BA);
+[~,~,~,~,~,~, phi_hba_p, ~]              = BAgmres_hybrid_bounds(A, B_pert,   b, x_true, tol, maxit, lambda, zeros(size(DeltaM_BA)));
+% --- hybrid AB-GMRES ---
+[~,~,~,~,~,~, phi_hab_u, dphi_hab_bound] = ABgmres_hybrid_bounds(A, B_unpert, b, x_true, tol, maxit, lambda, DeltaM_AB);
+[~,~,~,~,~,~, phi_hab_p, ~]              = ABgmres_hybrid_bounds(A, B_pert,   b, x_true, tol, maxit, lambda, zeros(size(DeltaM_AB)));
 
 fprintf('Simulations complete.\n');
 
-%% 2.5) Determine k_to_plot (clamped to available iterations)
-desired_k = 20;
-all_lengths = [ numel(phi_ab_p), numel(phi_ab_u), ...
-                numel(phi_ba_p), numel(phi_ba_u), ...
-                numel(phi_hab_p), numel(phi_hab_u), ...
-                numel(phi_hba_p), numel(phi_hba_u) ];
-max_k = min(all_lengths);               % smallest available length across all methods
-k_to_plot = min(desired_k, max_k);      % clamp to available range
-if desired_k > max_k
-    warning('Requested k = %d exceeds available iterations (%d). Using k = %d instead.', ...
-            desired_k, max_k, k_to_plot);
-end
-
-%% 3) Plot the comparison
-fprintf('Generating bound validation plot for k = %d...\n', k_to_plot);
-
+%% 3) Plot 2x2 comparison
+fprintf('Generating bound validation plot...\n');
 figure('Name', 'Perturbation Bound Validation', 'Position', [100 100 900 700]);
 t = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
-title(t, ['Validation of Perturbation Bounds at Iteration k = ', num2str(k_to_plot)], 'FontSize', 14);
+title(t, 'Validation of Perturbation Bounds at Final Iteration', 'FontSize', 14, 'FontWeight', 'bold');
 
-% non-hybrid AB
-phi_ab_p_k = phi_ab_p{k_to_plot};
-phi_ab_u_k = phi_ab_u{k_to_plot};
-actual_change_ab     = abs(phi_ab_p_k(1:k_to_plot) - phi_ab_u_k(1:k_to_plot));
-theoretical_bound_ab = abs(dphi_ab_p(1:k_to_plot));
-semilogy(1:k_to_plot, actual_change_ab,     'o-','DisplayName','Actual Change |Δφ|'); hold on;
-semilogy(1:k_to_plot, theoretical_bound_ab, 'x--','DisplayName','Theoretical Bound |δφ|');
-hold off; grid on; title('non-hybrid AB-GMRES');
-xlabel('Mode index i'); ylabel('Magnitude'); legend('Location','Best');
+% --- Use a helper function for clean, robust plotting ---
+plot_single_bound(nexttile, phi_ab_u, phi_ab_p, dphi_ab_bound, 'non-hybrid AB-GMRES');
+plot_single_bound(nexttile, phi_ba_u, phi_ba_p, dphi_ba_bound, 'non-hybrid BA-GMRES');
+plot_single_bound(nexttile, phi_hab_u, phi_hab_p, dphi_hab_bound, 'hybrid AB-GMRES');
+plot_single_bound(nexttile, phi_hba_u, phi_hba_p, dphi_hba_bound, 'hybrid BA-GMRES');
 
-% --- non-hybrid BA ---
-phi_ba_p_k = phi_ba_p{k_to_plot};
-phi_ba_u_k = phi_ba_u{k_to_plot};
-actual_change_ba     = abs(phi_ba_p_k(1:k_to_plot) - phi_ba_u_k(1:k_to_plot));
-theoretical_bound_ba = abs(dphi_ba_p(1:k_to_plot));
-semilogy(1:k_to_plot, actual_change_ba,     'o-','DisplayName','Actual Change |Δφ|'); hold on;
-semilogy(1:k_to_plot, theoretical_bound_ba, 'x--','DisplayName','Theoretical Bound |δφ|');
-hold off; grid on; title('non-hybrid BA-GMRES');
-xlabel('Mode index i'); legend('Location','Best');
+end
 
-% --- hybrid AB ---
-phi_hab_p_k = phi_hab_p{k_to_plot};
-phi_hab_u_k = phi_hab_u{k_to_plot};
-actual_change_hab     = abs(phi_hab_p_k(1:k_to_plot) - phi_hab_u_k(1:k_to_plot));
-theoretical_bound_hab = abs(dphi_hab_p(1:k_to_plot));
-semilogy(1:k_to_plot, actual_change_hab,     'o-','DisplayName','Actual Change |Δφ|'); hold on;
-semilogy(1:k_to_plot, theoretical_bound_hab, 'x--','DisplayName','Theoretical Bound |δφ|');
-hold off; grid on; title('hybrid AB-GMRES');
-xlabel('Mode index i'); ylabel('Magnitude'); legend('Location','Best');
-
-% --- hybrid BA ---
-phi_hba_p_k = phi_hba_p{k_to_plot};
-phi_hba_u_k = phi_hba_u{k_to_plot};
-actual_change_hba     = abs(phi_hba_p_k(1:k_to_plot) - phi_hba_u_k(1:k_to_plot));
-theoretical_bound_hba = abs(dphi_hba_p(1:k_to_plot));
-semilogy(1:k_to_plot, actual_change_hba,     'o-','DisplayName','Actual Change |Δφ|'); hold on;
-semilogy(1:k_to_plot, theoretical_bound_hba, 'x--','DisplayName','Theoretical Bound |δφ|');
-hold off; grid on; title('hybrid BA-GMRES');
-xlabel('Mode index i'); legend('Location','Best');
-
+% --- Local Helper Function for Plotting ---
+function plot_single_bound(ax, phi_u, phi_p, dphi_bound, plot_title)
+    
+    % Determine the actual number of iterations completed
+    k_actual = min([length(phi_u), length(phi_p), length(dphi_bound)]);
+    
+    % Check if the simulation produced any results
+    if k_actual == 0
+        title(ax, [plot_title ' (No iterations completed)']);
+        return;
+    end
+    
+    % Extract the data from the final iteration
+    phi_p_k = phi_p{k_actual};
+    phi_u_k = phi_u{k_actual};
+    dphi_bound_k = dphi_bound{k_actual};
+    
+    % Calculate the actual change vs. the theoretical bound
+    actual_change = abs(phi_p_k - phi_u_k);
+    theoretical_bound = abs(dphi_bound_k);
+    
+    % Plot the results
+    semilogy(ax, 1:k_actual, actual_change, 'o-', 'DisplayName','Actual Change |Δφ|');
+    hold(ax, 'on');
+    semilogy(ax, 1:k_actual, theoretical_bound, 'x--', 'DisplayName','Theoretical Bound |δφ|');
+    hold(ax, 'off');
+    grid(ax, 'on');
+    title(ax, sprintf('%s (k=%d)', plot_title, k_actual));
+    xlabel(ax, 'Mode index i');
+    ylabel(ax, 'Magnitude');
+    legend(ax, 'Location','Best');
 end

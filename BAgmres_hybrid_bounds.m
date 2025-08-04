@@ -4,9 +4,20 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
 % CORRECTED to return filter factors AND their perturbation bounds at each iteration.
 
     % Build M = B*A
-    M  = B * A;
+    M = B * A;
     
-    %--- Arnoldi + Tikhonov on M = B*A ---
+    % --- CORRECTED EIGENVALUE CALCULATION ---
+    % The eigenvalues 'mu' must be computed from the actual system matrix M = B*A.
+    % Since M may be non-symmetric, we use eig(). For a small problem (n=32),
+    % this is acceptable for analysis.
+    [V_M, D_M] = eig(M);
+    mu_full = real(diag(D_M));
+    % Sorting is crucial for consistent mode analysis
+    [mu_full, sort_idx] = sort(mu_full, 'descend');
+    % The matrix VA used later should be the eigenvectors of M
+    VA = V_M(:, sort_idx);
+
+    %--- Arnoldi + Tikhonov setup ---
     n     = size(A,2);
     x0    = zeros(n,1);
     r0    = B * (b - A*x0);
@@ -21,15 +32,10 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
     % Initialize cell arrays
     phi_iter = cell(maxit, 1);
     dphi_iter = cell(maxit, 1);
-
-    % --- EFFICIENT SVD: Calculate only ONCE before the loop ---
-    [~, SA, VA] = svds(A, maxit); % Need VA for this method
-    sigmaA = diag(SA);
-    mu_full = sigmaA.^2;
-
+    
     for k = 1:maxit
         % Arnoldi step
-        v = B*(A*Q(:,k));
+        v = B*(A*Q(:,k)); % Arnoldi process uses the correct M = B*A
         for j = 1:k
             H(j,k) = Q(:,j)'*v;
             v      = v - H(j,k)*Q(:,j);
@@ -49,33 +55,27 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         error_norm(k)    = norm(xk - x_true)/norm(x_true);
         
         % =====================================================================
-        % --- THIS IS THE CORRECT CALCULATION BLOCK FOR HYBRID BA-GMRES ---
+        % --- CALCULATION BLOCK FOR HYBRID BA-GMRES ---
         % =====================================================================
         
         % Compute harmonic-Ritz values and their shifts
         Qk_current = Q(:,1:k);
-        % CORRECT perturbation for BA-GMRES
-        dK_small_current = Qk_current' * (DeltaM * A * Qk_current); 
-
-        % CORRECT way to compute harmonic-Ritz values for regularized operator K
+        dK_small_current = Qk_current' * (DeltaM * Qk_current); % Note: M = B*A, so DeltaM perturbs B*A
         Hk_full_current  = H(1:k+1, 1:k);
         Hk_small_current = H(1:k, 1:k);
-        Hk_reg_full = Hk_full_current  + lambda * [eye(k); zeros(1, k)];
-        Hk_reg_small = Hk_small_current + lambda * eye(k);
-        [W_current, Th_eig] = eig(Hk_reg_full' * Hk_reg_full, Hk_reg_small);
+        % This calculation for harmonic Ritz values from H is correct
+        [W_current, Th_eig] = eig(Hk_full_current'*Hk_full_current, Hk_small_current);
         Theta_current = real(diag(Th_eig));
         [Theta_current, p_sort] = sort(Theta_current);
         W_current = W_current(:,p_sort);
-
-        % Compute perturbation dTheta
         dTheta_current = real(diag(W_current' * dK_small_current * W_current));
         
-        % CORRECT way to compute dMu for BA-GMRES using VA
-        dMu_current = sum(VA(:,1:k) .* ( (DeltaM*A) * VA(:,1:k) ), 1)';
-
+        % Compute dMu for BA-GMRES using the eigenvectors of M
+        dMu_current = sum(VA(:,1:k) .* ( DeltaM * VA(:,1:k) ), 1)';
+        
         % Truncate mu to the current size k
-        mu_current = mu_full(1:k);
-
+        mu_current = mu_full(1:k); % This now uses the CORRECT eigenvalues of M
+        
         % Build phi and dphi using filter factor formula from Theorem 4.4.1
         s2l = mu_current + lambda;
         eps0_current = eps;
@@ -106,18 +106,15 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         
         if residual_norm(k) <= tol, break; end
     end
-
     % Final values after the loop
     niters = k;
     x = xk;
     residual_norm = residual_norm(1:k);
     error_norm = error_norm(1:k);
 
-    % The final values are from the last iteration
     phi_final = phi_iter{k};
     dphi_final = dphi_iter{k};
 
-    % Trim the cell arrays to the actual number of iterations performed
     phi_iter = phi_iter(1:k);
     dphi_iter = dphi_iter(1:k);
 end

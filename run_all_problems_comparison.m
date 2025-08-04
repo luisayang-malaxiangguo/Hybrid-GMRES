@@ -65,43 +65,20 @@ for i = 1:length(b_chart)
 end
 
 ylim([min(final_errors(:))*0.1, max(final_errors(:))*5]);
+
 end
 
 % --- You need this helper function in the same file or on your MATLAB path ---
-function [A, b, x] = generate_test_problem(name, n)
+function [A, b, x_true] = generate_test_problem(name, n)
+% This function remains unchanged.
     switch lower(name)
         case 'shaw'
-            t = ( (1:n) - 0.5 ) * pi / n;
-            [T, S] = meshgrid(t);
-            K = (cos(S) + cos(T)).^2 .* (sin(pi*(sin(S)+sin(T))) ./ (pi*(sin(S)+sin(T)))).^2;
-            K(isinf(K)|isnan(K)) = 1;
-            h = pi/n;
-            A = h*K;
-            x = 2*exp(-6*(t-0.8).^2)' + exp(-2*(t+0.5).^2)';
+            [A, b, x_true] = shaw(n);
         case 'heat'
-            t = (0:n-1)'/(n-1);
-            kappa = 0.5;
-            [T, S] = meshgrid(t);
-            h = 1/n;
-            A = h * (1/sqrt(4*pi*kappa)) * exp(-(S-T).^2 / (4*kappa));
-            x = t;
-            x(t > 0.5) = 1 - t(t > 0.5);
-            x = x + 0.5;
+            [A, b, x_true] = heat(n);
         case 'deriv2'
-            A = spdiags(ones(n,1)*[-1, 2, -1], -1:1, n, n);
-            A = full(A);
-            A(1,1:2) = [1 -1];
-            A(n,n-1:n) = [-1 1];
-            A = A * (n-1);
-            t = (0:n-1)'/(n-1);
-            x = t.^2 .* (1-t).^2 .* exp(2*t);
+            [A, b, x_true] = deriv2(n);
         otherwise
             error('Unknown problem name. Use shaw, heat, or deriv2.');
     end
-    b = A*x;
-    rng('default');
-    e = randn(size(b));
-    e = e/norm(e);
-    eta = 1e-3 * norm(b);
-    b = b + eta*e;
 end

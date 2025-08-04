@@ -1,134 +1,141 @@
 function plot_spectral_approximation()
-% PLOT_SPECTRAL_APPROXIMATION
-% Visualizes how well the harmonic Ritz values (Theta) approximate the
-% squared singular values (mu) of the matrix A for each GMRES variant.
+    %% 1) Set up Test Problem & Parameters
+    n = 32;
+    %[A, b, ~] = deriv2(n); 
+    %[A, b, ~] = heat(n); 
+    [A, b, ~] = shaw(n); 
+    
+    % Create a B that is NOT the transpose of A by adding a small perturbation
+    B       = A';     % Matched back-projector
+    % Use a fixed seed for the random perturbation for reproducibility
+    rng(0);
+    % Define perturbation E and perturbed matrix B
+    E = 1e-5 * randn(size(A'));
+    B_pert = A' + E;
 
-%% 1) Set up Test Problem & Parameters
-n = 32;
-[A, b, x_true] = deriv2(n); % 'deriv2' is a good choice here
-tol = 1e-8;
-maxit = n;
-lambda = 1e-3;
-B = A';
-rng(0);
-DeltaM = 1e-5 * randn(size(A'));
+    % Define the total perturbation terms for AB and BA methods
+    DeltaM_AB = A * E;
+    DeltaM_BA = E * A;
 
-% Get the "true" singular values (squared) of A
-[~, S_true, ~] = svd(A, 'econ');
-mu_true = diag(S_true).^2;
-mu_true = sort(mu_true, 'ascend'); % Sort for easier comparison
+    % For the general case, we need the eigenvalues of the actual system operators.
+    
+    % Eigenvalues for the AB system
+    M_ab = A * B;
+    mu_ab_true = sort(real(eig(M_ab)), 'ascend');
+    
+    % Eigenvalues for the BA system
+    M_ba = B * A;
+    mu_ba_true = sort(real(eig(M_ba)), 'ascend');
 
-%% 2) Run methods to get iterative history
-fprintf('Running GMRES variants to collect spectral data...\n');
-[~, ~, ~, it_ab, ~, ~, phi_ab_iter, ~] = ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
-[~, ~, ~, it_ba, ~, ~, phi_ba_iter, ~] = BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM);
-[~, ~, ~, it_hab, ~, ~, phi_hab_iter, ~] = ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
-[~, ~, ~, it_hba, ~, ~, phi_hba_iter, ~] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM);
-fprintf('Simulations complete.\n');
+    %% 2) Generate Plots
+    k_values = [5, 15, 30]; 
+    lambda = 1e-3; % Lambda for hybrid methods
+    
+    figure('Name', 'Figure 3: Spectral Approximation', 'Position', [100 100 850 700]);
+    t = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+    title(t, 'Ritz / Harmonic Ritz Values (\theta) vs. True Eigenvalues (\mu)', 'FontSize', 14, 'FontWeight', 'bold');
+    
+    % --- Plot for non-hybrid AB ---
+    ax1 = nexttile;
+    % Pass the true eigenvalues of the AB operator
+    plot_theta_vs_mu(ax1, 'ab_nonhybrid', A, B, b, mu_ab_true, k_values, lambda);
+    title('non-hybrid AB-GMRES');
+    ylabel('Value (log scale)');
 
-%% 3) Re-run to extract Theta values at each iteration
-% We need to modify the original functions slightly to output Theta_iter
-% For this script, we'll just re-implement the core logic to get Theta.
-k_values = [5, 15, 30]; % Iterations to inspect
+    % --- Plot for non-hybrid BA ---
+    ax2 = nexttile;
+    % Pass the true eigenvalues of the BA operator
+    plot_theta_vs_mu(ax2, 'ba_nonhybrid', A, B, b, mu_ba_true, k_values, lambda);
+    title('non-hybrid BA-GMRES');
+    
+    % --- Plot for hybrid AB ---
+    ax3 = nexttile;
+    % Pass the true eigenvalues of the AB operator
+    plot_theta_vs_mu(ax3, 'ab_hybrid', A, B, b, mu_ab_true, k_values, lambda);
+    title('hybrid AB-GMRES');
+    xlabel('Index'); ylabel('Value (log scale)');
 
-figure('Name', 'Spectral Approximation Quality', 'Position', [100 100 900 700]);
-t = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
-title(t, 'Harmonic Ritz Values (\theta) vs. True Singular Values (\mu)', 'FontSize', 14);
-
-% --- Plot for non-hybrid AB ---
-ax1 = nexttile;
-plot_theta_vs_mu(ax1, 'ab_nonhybrid', A, B, b, maxit, mu_true, k_values, lambda);
-title('non-hybrid AB-GMRES');
-ylabel('Value (log scale)');
-
-% --- Plot for non-hybrid BA ---
-ax2 = nexttile;
-plot_theta_vs_mu(ax2, 'ba_nonhybrid', A, B, b, maxit, mu_true, k_values, lambda);
-title('non-hybrid BA-GMRES');
-
-% --- Plot for hybrid AB ---
-ax3 = nexttile;
-plot_theta_vs_mu(ax3, 'ab_hybrid', A, B, b, maxit, mu_true, k_values, lambda);
-title('hybrid AB-GMRES');
-xlabel('Index'); ylabel('Value (log scale)');
-
-% --- Plot for hybrid BA ---
-ax4 = nexttile;
-plot_theta_vs_mu(ax4, 'ba_hybrid', A, B, b, maxit, mu_true, k_values, lambda);
-title('hybrid BA-GMRES');
-xlabel('Index');
-
+    % --- Plot for hybrid BA ---
+    ax4 = nexttile;
+    % Pass the true eigenvalues of the BA operator
+    plot_theta_vs_mu(ax4, 'ba_hybrid', A, B, b, mu_ba_true, k_values, lambda);
+    title('hybrid BA-GMRES');
+    xlabel('Index');
 end
 
-function plot_theta_vs_mu(ax, method, A, B, b, maxit, mu_true, k_vals, lambda)
+function plot_theta_vs_mu(ax, method, A, B, b, mu_true, k_vals, lambda)
     hold(ax, 'on');
-    colors = lines(length(k_vals));
-
-    % Plot true singular values as a reference line
-    semilogy(ax, 1:length(mu_true), mu_true, 'k-', 'LineWidth', 2, 'DisplayName', 'True \mu_i');
-
+    colors = [0 0.4470 0.7410; 0.8500 0.3250 0.0980; 0.9290 0.6940 0.1250];
+    
+    semilogy(ax, 1:length(mu_true), mu_true, 'k.', 'MarkerSize', 8, 'HandleVisibility', 'off');
+    semilogy(ax, NaN, NaN, 'k-', 'LineWidth', 1.5, 'DisplayName', 'True \mu_i');
+    
     for i = 1:length(k_vals)
         k = k_vals(i);
-        Theta_k = get_harmonic_ritz_values(method, A, B, b, k, lambda);
-        semilogy(ax, 1:k, Theta_k, 'o', 'Color', colors(i,:), 'MarkerFaceColor', colors(i,:), 'DisplayName', sprintf('k = %d', k));
+        Theta_k = get_spectral_values_stable(method, A, B, b, k, lambda);
+        
+        % FIX: Use the ACTUAL length of Theta_k for the x-coordinates
+        % This handles cases where the Arnoldi loop breaks early.
+        semilogy(ax, 1:length(Theta_k), Theta_k, 'o', 'MarkerSize', 6, 'Color', colors(i,:), ...
+                 'MarkerFaceColor', colors(i,:), 'DisplayName', sprintf('k = %d', k));
     end
-
+    
     hold(ax, 'off');
     grid on;
     legend('Location', 'SouthEast');
-    ylim([1e-6, 1e4]); % Adjust as needed
+    xlim([0, length(mu_true) + 1]);
 end
-
-function Theta = get_harmonic_ritz_values(method, A, B, b, k_target, lambda)
-    % Simplified runner to extract harmonic Ritz values at iteration k_target
+function Theta = get_spectral_values_stable(method, A, B, b, k_target, lambda)
+    % This version correctly handles early breakdown AND sorts the output.
     maxit = k_target;
-    
-    % Setup based on method
     if contains(method, 'ab')
-        r0 = b;
-        m_space = size(A,1);
-        Q = zeros(m_space, maxit + 1);
-        H = zeros(maxit + 1, maxit);
-        beta = norm(r0);
-        Q(:,1) = r0 / beta;
-    else % ba
-        r0 = B*b;
-        n_space = size(A,2);
-        Q = zeros(n_space, maxit + 1);
-        H = zeros(maxit + 1, maxit);
-        beta = norm(r0);
-        Q(:,1) = r0 / beta;
+        op = @(v) A * (B * v); r0 = b; op_size = size(A,1);
+    else 
+        op = @(v) B * (A * v); r0 = B*b; op_size = size(A,2);
     end
-    
-    % Arnoldi process
+
+    Q = zeros(op_size, maxit + 1); 
+    H = zeros(maxit + 1, maxit);
+    beta = norm(r0); 
+    Q(:,1) = r0 / beta;
+
+    % --- Arnoldi Loop ---
+    k = 0; % Initialize k outside the loop
     for k = 1:k_target
-        if contains(method, 'ab')
-            v = A * (B * Q(:,k));
-        else % ba
-            v = B * (A * Q(:,k));
-        end
+        v = op(Q(:,k));
         for j = 1:k
-            H(j,k) = Q(:,j)'*v;
+            H(j,k) = Q(:,j)'*v; 
             v = v - H(j,k)*Q(:,j);
         end
         H(k+1,k) = norm(v);
-        if H(k+1,k) == 0, break; end
+        if H(k+1,k) < 1e-12, break; end % Break if breakdown occurs
         Q(:,k+1) = v / H(k+1,k);
     end
-
-    % Calculate harmonic Ritz values at k_target
-    Hk_small = H(1:k_target, 1:k_target);
-    ek = zeros(k_target,1);
-    ek(end) = 1;
     
-    if contains(method, 'nonhybrid')
-        P_eig_problem = Hk_small + (H(k_target+1, k_target)^2) * (Hk_small'\(ek*ek'));
-        [~, D_eig] = eig(P_eig_problem);
-        Theta = sort(real(diag(D_eig)), 'ascend');
-    else % hybrid
-         P_unreg = Hk_small + (H(k_target+1, k_target)^2) * (Hk_small'\(ek*ek'));
-         P_reg = P_unreg + lambda*eye(k_target);
-         [~, D_eig] = eig(P_reg);
-         Theta = sort(real(diag(D_eig)), 'ascend');
+    % --- Spectral Calculation ---
+    % Use the FINAL value of k from the loop for slicing all matrices
+    Hk_small = H(1:k, 1:k);
+
+    if strcmp(method, 'ab_nonhybrid')
+        [~, D_eig] = eig(Hk_small);
+        Theta = real(diag(D_eig));
+    else
+        ek = zeros(k,1); 
+        ek(end) = 1;
+        
+        y = pinv(Hk_small') * ek;
+        P_unreg = Hk_small + (H(k+1, k)^2) * (y * ek');
+        
+        if contains(method, 'hybrid')
+            P_reg = P_unreg + lambda*eye(k);
+            [~, D_eig] = eig(P_reg);
+            Theta = real(diag(D_eig));
+        else
+            [~, D_eig] = eig(P_unreg);
+            Theta = real(diag(D_eig));
+        end
     end
+    
+    % FIX: Sort Theta to match the sorting of mu_true for correct plotting
+    Theta = sort(Theta, 'ascend');
 end
