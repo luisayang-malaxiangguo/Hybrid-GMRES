@@ -3,7 +3,6 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
 % ABGMRES_HYBRID_BOUNDS AB-GMRES with Tikhonov regularization and perturbation bounds.
 % This function returns filter factors (phi) and their perturbation bounds (dPhi) at each iteration.
 
-    % Define the correct system operator
     M = A * B;
     m = size(A, 1);
     
@@ -11,9 +10,9 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
     % Since M may be non-symmetric, we use eig().
     [U_M, D_M] = eig(M);
     mu_full = real(diag(D_M));
-    % Sorting is crucial for consistent mode analysis
+    % Sort for consistent mode analysis
     [mu_full, sort_idx] = sort(mu_full, 'descend');
-    % The matrix UA used later should be the eigenvectors of M
+    % matrix UA used later for eigenvectors of M
     UA = U_M(:, sort_idx);
 
     %--- Arnoldi + Tikhonov Setup ---
@@ -27,7 +26,7 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
     residual_norm = zeros(maxit,1);
     error_norm    = zeros(maxit,1);
     
-    % Initialize cell arrays
+    % Initialize 
     phi_iter = cell(maxit, 1);
     dphi_iter = cell(maxit, 1);
 
@@ -42,7 +41,7 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         if H(k+1,k) == 0, break; end
         Q(:,k+1) = v / H(k+1,k);
         
-        % Projected Tikhonov solve
+        % Projected Tikhonov
         Hk = H(1:k+1,1:k);
         tk = e1(1:k+1);
         yk = (Hk'*Hk + lambda*eye(k)) \ (Hk'*tk);
@@ -52,10 +51,6 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         % Norms & stopping
         residual_norm(k) = norm(b - A*xk)/norm(b);
         error_norm(k)    = norm(xk - x_true)/norm(x_true);
-        
-        % =====================================================================
-        % --- CALCULATION BLOCK FOR HYBRID AB-GMRES ---
-        % =====================================================================
         
         % Form projected perturbation
         Qk_current = Q(:,1:k);
@@ -74,8 +69,6 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
 
         % Compute perturbations dTheta and dMu
         dTheta_current = real(diag(W_current' * dK_small_current * W_current));
-        
-        % CORRECTED dMu calculation using eigenvectors of M
         dMu_current = sum(UA(:,1:k) .* (DeltaM * UA(:,1:k)), 1)';
         
         % Truncate mu to the current size k
@@ -95,17 +88,15 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
             end
         end
         P_final = exp(Clog_current);
-        
-        % Correct formula for HYBRID filter factor
         phi_current = (mu_current ./ s2l) .* (1 - P_final);
         
-        % Correct formula for HYBRID perturbation bound (3 terms)
+        % HYBRID perturbation bound (3 terms)
         term1 = - (mu_current) .* sum((dTheta_current.' ./ Theta_current.'.^2) .* P_excl_current, 2);
         term2 =   (lambda ./ s2l.^2) .* (1 - P_final) .* dMu_current;
         term3 =   (mu_current ./ s2l) .* sum((1./Theta_current') .* P_excl_current, 2) .* dMu_current;
         dphi_current = term1 + term2 + term3;
         
-        % Store the calculated phi and dphi in our cell arrays
+        % Store the calculated phi and dphi
         phi_iter{k} = phi_current;
         dphi_iter{k} = dphi_current;
 
@@ -121,4 +112,5 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
 
     phi_iter = phi_iter(1:k);
     dphi_iter = dphi_iter(1:k);
+
 end
