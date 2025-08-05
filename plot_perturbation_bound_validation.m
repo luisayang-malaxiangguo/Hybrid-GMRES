@@ -4,7 +4,8 @@ function plot_perturbation_bound_validation()
 
 %% 1) Set up Test Problem & Parameters
 n = 32;
-[A, b, x_true] = shaw(n);
+problem_name = 'shaw'; % Moderately ill-posed, good for showing regularization
+[A, b_exact, x_true] = generate_test_problem(problem_name, n);
 lambda = 1e-3;
 k_to_plot = 30; % Choose k < n 
 maxit = k_to_plot;
@@ -24,17 +25,17 @@ DeltaM_BA = E * A;
 fprintf('Running simulations for k <= %d...\n', k_to_plot);
 
 % --- non-hybrid BA-GMRES ---
-[~,~,~,~,~,~, phi_ba_u, dphi_ba_bound] = BAgmres_nonhybrid_bounds(A, B_unpert, b, x_true, tol, maxit, DeltaM_BA);
-[~,~,~,~,~,~, phi_ba_p, ~]             = BAgmres_nonhybrid_bounds(A, B_pert,   b, x_true, tol, maxit, zeros(size(DeltaM_BA)));
+[~,~,~,~,~,~, phi_ba_u, dphi_ba_bound] = BAgmres_nonhybrid_bounds(A, B_unpert, b_exact, x_true, tol, maxit, DeltaM_BA);
+[~,~,~,~,~,~, phi_ba_p, ~]             = BAgmres_nonhybrid_bounds(A, B_pert,   b_exact, x_true, tol, maxit, zeros(size(DeltaM_BA)));
 % --- non-hybrid AB-GMRES ---
-[~,~,~,~,~,~, phi_ab_u, dphi_ab_bound] = ABgmres_nonhybrid_bounds(A, B_unpert, b, x_true, tol, maxit, DeltaM_AB);
-[~,~,~,~,~,~, phi_ab_p, ~]             = ABgmres_nonhybrid_bounds(A, B_pert,   b, x_true, tol, maxit, zeros(size(DeltaM_AB)));
+[~,~,~,~,~,~, phi_ab_u, dphi_ab_bound] = ABgmres_nonhybrid_bounds(A, B_unpert, b_exact, x_true, tol, maxit, DeltaM_AB);
+[~,~,~,~,~,~, phi_ab_p, ~]             = ABgmres_nonhybrid_bounds(A, B_pert,   b_exact, x_true, tol, maxit, zeros(size(DeltaM_AB)));
 % --- hybrid BA-GMRES ---
-[~,~,~,~,~,~, phi_hba_u, dphi_hba_bound] = BAgmres_hybrid_bounds(A, B_unpert, b, x_true, tol, maxit, lambda, DeltaM_BA);
-[~,~,~,~,~,~, phi_hba_p, ~]              = BAgmres_hybrid_bounds(A, B_pert,   b, x_true, tol, maxit, lambda, zeros(size(DeltaM_BA)));
+[~,~,~,~,~,~, phi_hba_u, dphi_hba_bound] = BAgmres_hybrid_bounds(A, B_unpert, b_exact, x_true, tol, maxit, lambda, DeltaM_BA);
+[~,~,~,~,~,~, phi_hba_p, ~]              = BAgmres_hybrid_bounds(A, B_pert,   b_exact, x_true, tol, maxit, lambda, zeros(size(DeltaM_BA)));
 % --- hybrid AB-GMRES ---
-[~,~,~,~,~,~, phi_hab_u, dphi_hab_bound] = ABgmres_hybrid_bounds(A, B_unpert, b, x_true, tol, maxit, lambda, DeltaM_AB);
-[~,~,~,~,~,~, phi_hab_p, ~]              = ABgmres_hybrid_bounds(A, B_pert,   b, x_true, tol, maxit, lambda, zeros(size(DeltaM_AB)));
+[~,~,~,~,~,~, phi_hab_u, dphi_hab_bound] = ABgmres_hybrid_bounds(A, B_unpert, b_exact, x_true, tol, maxit, lambda, DeltaM_AB);
+[~,~,~,~,~,~, phi_hab_p, ~]              = ABgmres_hybrid_bounds(A, B_pert,   b_exact, x_true, tol, maxit, lambda, zeros(size(DeltaM_AB)));
 
 fprintf('Simulations complete.\n');
 

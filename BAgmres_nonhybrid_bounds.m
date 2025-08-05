@@ -1,13 +1,12 @@
 function [x, err, res, niters, phi_final, dphi_final, phi_iter, dphi_iter] = BAgmres_nonhybrid_bounds( ...
     A, B, b, x_true, tol, maxit, DeltaM)
 % BAGMRES_NONHYBRID_BOUNDS Non-hybrid BA-GMRES + perturbation bounds.
-% CORRECTED to return filter factors AND their perturbation bounds at each iteration.
+% return filter factors AND their perturbation bounds at each iteration.
     
     % Build M = B*A
     M = B * A;
     n = size(A, 2);
 
-    % --- CORRECTED EIGENVALUE CALCULATION ---
     % The eigenvalues 'mu' must be computed from the actual system matrix M = B*A.
     % Since M may be non-symmetric, we use eig().
     [V_M, D_M] = eig(M);
@@ -51,9 +50,6 @@ function [x, err, res, niters, phi_final, dphi_final, phi_iter, dphi_iter] = BAg
         res(k)  = norm(b - A * xk) / norm(b);
         err(k)  = norm(xk - x_true) / norm(x_true);
         
-        % =====================================================================
-        % --- THIS ENTIRE BLOCK MUST BE INSIDE THE LOOP ---
-        % =====================================================================
         
         % Compute harmonic-Ritz values and their perturbations
         Qk_current = Q(:,1:k);

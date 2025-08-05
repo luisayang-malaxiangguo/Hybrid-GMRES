@@ -48,7 +48,6 @@ function [x, err, res, niters, phi_final, dphi_final, phi_iter, dphi_iter] = ABg
         res(k) = norm(b - A*xk)/norm(b);
         err(k) = norm(xk - x_true)/norm(x_true);
         
-        % === Calculate filter factors and bounds using HARMONIC RITZ VALUES ===
         
         % Compute harmonic-Ritz values and their perturbations
         Qk_current = Q(:,1:k);
@@ -58,7 +57,7 @@ function [x, err, res, niters, phi_final, dphi_final, phi_iter, dphi_iter] = ABg
         ek_current = zeros(k,1); 
         ek_current(end) = 1;
         
-        % This correctly computes the harmonic-Ritz values of M
+        % computes the harmonic-Ritz values of M
         P_eig_problem = Hk_small_current + (H(k+1,k)^2)*(Hk_small_current'\(ek_current*ek_current'));
         [W_current, Th_eig] = eig(P_eig_problem);
         Theta_current = real(diag(Th_eig));

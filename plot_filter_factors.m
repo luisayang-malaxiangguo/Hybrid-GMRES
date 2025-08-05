@@ -1,10 +1,14 @@
 function plot_filter_factors()
 %% 1) Set up Test Problem
 n = 32;
+problem_to_run = 'shaw';
+[A, b_exact, x_true] = generate_test_problem(problem_to_run, n);
 
-%[A, b, x_true] = deriv2(n);
-[A, b, x_true] = shaw(n);
-%[A, b, x_true] = heat(n);
+rng(0); % For reproducibility
+noise_level = 7.375934e-09; %optimal lambda to check results from run_all_methods_with_true_optimal_lambda
+noise = randn(size(b_exact));
+noise = noise / norm(noise) * noise_level * norm(b_exact);
+b_exact = b_exact + noise; % Noisy right-hand side
 
 %% 2) Algorithm Parameters
 tol     = 1e-6;
@@ -15,7 +19,7 @@ B       = A';     % Matched back-projector
 rng(0); 
 % Define perturbation E and perturbed matrix B
 E = 1e-5 * randn(size(A'));
-B_pert = A' + E;
+B= A' + E;
 
 % Define the total perturbation terms for AB and BA methods
 DeltaM_AB = A * E;
@@ -24,10 +28,10 @@ DeltaM_BA = E * A;
 %% 3) Run Each Method & Collect Full Iterative History
 fprintf('Running GMRES variants...\n');
 
-[x_ab, err_ab, res_ab, it_ab, phi_ab_final, dphi_ab_final, phi_ab_iter,  dphi_ab_iter] = ABgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM_AB);
-[x_ba, err_ba, res_ba, it_ba, phi_ba_final, dphi_ba_final, phi_ba_iter,  dphi_ba_iter] = BAgmres_nonhybrid_bounds(A, B, b, x_true, tol, maxit, DeltaM_BA);
-[x_hab, err_hab, res_hab, it_hab, phi_hab_final, dphi_hab_final, phi_hab_iter, dphi_hab_iter] = ABgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM_AB);
-[x_hba, err_hba, res_hba, it_hba, phi_hba_final, dphi_hba_final, phi_hba_iter, dphi_hba_iter] = BAgmres_hybrid_bounds(A, B, b, x_true, tol, maxit, lambda, DeltaM_BA);
+[x_ab, err_ab, res_ab, it_ab, phi_ab_final, dphi_ab_final, phi_ab_iter,  dphi_ab_iter] = ABgmres_nonhybrid_bounds(A, B, b_exact, x_true, tol, maxit, DeltaM_AB);
+[x_ba, err_ba, res_ba, it_ba, phi_ba_final, dphi_ba_final, phi_ba_iter,  dphi_ba_iter] = BAgmres_nonhybrid_bounds(A, B, b_exact, x_true, tol, maxit, DeltaM_BA);
+[x_hab, err_hab, res_hab, it_hab, phi_hab_final, dphi_hab_final, phi_hab_iter, dphi_hab_iter] = ABgmres_hybrid_bounds(A, B, b_exact, x_true, tol, maxit, lambda, DeltaM_AB);
+[x_hba, err_hba, res_hba, it_hba, phi_hba_final, dphi_hba_final, phi_hba_iter, dphi_hba_iter] = BAgmres_hybrid_bounds(A, B, b_exact, x_true, tol, maxit, lambda, DeltaM_BA);
 
 fprintf('All methods complete.\n');
 
@@ -37,7 +41,7 @@ fprintf('Generating final filter factor comparison plot...\n');
 % Compute empirical filters  
 [U,S,V] = svd(A,'econ');
 sigma   = diag(S);
-d       = U' * b;
+d       = U' * b_exact;
 
 % Ensure division by d is safe for near-zero values
 d(abs(d) < 1e-12) = 1; 
