@@ -1,11 +1,11 @@
 function plot_filter_factors()
 %% 1) Set up Test Problem
 n = 32;
-problem_to_run = 'shaw';
+problem_to_run = 'deriv2';
 [A, b_exact, x_true] = generate_test_problem(problem_to_run, n);
 
 rng(0); % For reproducibility
-noise_level = 7.375934e-09; %optimal lambda to check results from run_all_methods_with_true_optimal_lambda
+noise_level = 1e-3; %optimal lambda to check results from run_all_methods_with_true_optimal_lambda
 noise = randn(size(b_exact));
 noise = noise / norm(noise) * noise_level * norm(b_exact);
 b_exact = b_exact + noise; % Noisy right-hand side
@@ -18,7 +18,7 @@ B       = A';     % Matched back-projector
 % Use a fixed seed for the random perturbation for reproducibility
 rng(0); 
 % Define perturbation E and perturbed matrix B
-E = 1e-5 * randn(size(A'));
+E = 1e-4 * randn(size(A'));
 B= A' + E;
 
 % Define the total perturbation terms for AB and BA methods
@@ -130,7 +130,6 @@ for i = 1:length(k_values)
     title(sprintf('k = %d', k)); 
     legend('Location', 'Best');
 end
-ylim([-0.5, 1.5]);
 %% Plot 3: Evolution for Each Method
 k_values = [2, 16, 32];
 figure('Name', 'Filter Factor Evolution per Method', 'Position', [100 100 900 700]);
@@ -150,7 +149,6 @@ hold off; grid on;
 title('non-hybrid AB-GMRES');
 xlabel('Mode index i'); ylabel('Filter factor \phi_{i,k}');
 legend('Location', 'Best');
-ylim([-0.5, 1.5]);
 
 % --- Plot 2: non-hybrid BA ---
 nexttile;
@@ -164,7 +162,6 @@ hold off; grid on;
 title('non-hybrid BA-GMRES');
 xlabel('Mode index i');
 legend('Location', 'Best');
-ylim([-0.5, 1.5]);
 
 % --- Plot 3: hybrid AB ---
 nexttile;
@@ -192,7 +189,6 @@ hold off; grid on;
 title('hybrid BA-GMRES');
 xlabel('Mode index i');
 legend('Location', 'Best');
-ylim([-0.5, 1.5]);
 
 %% Plot 4: Magnitude of the Perturbation Bound
 fprintf('Generating perturbation bound magnitude plot...\n');
@@ -239,7 +235,6 @@ xlabel('Iteration k');
 ylabel('||x_k - x_{true}|| / ||x_{true}||');
 legend('Location', 'Best');
 grid on;
-ylim([1e-4, 2]); % Adjust ylim as needed
 
 % Subplot for Relative Residual
 subplot(1, 2, 2);

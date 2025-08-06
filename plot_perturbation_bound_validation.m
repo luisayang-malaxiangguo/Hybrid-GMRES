@@ -4,7 +4,7 @@ function plot_perturbation_bound_validation()
 
 %% 1) Set up Test Problem & Parameters
 n = 32;
-problem_name = 'shaw'; % Moderately ill-posed, good for showing regularization
+problem_name = 'deriv2'; % Moderately ill-posed, good for showing regularization
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
 lambda = 1e-3;
 k_to_plot = 30; % Choose k < n 
@@ -14,7 +14,7 @@ rng(0); % for reproducibility
 
 % Define unperturbed and perturbed back-projectors
 B_unpert = A';
-E = 1e-5 * randn(size(A)); % Create an error matrix
+E = 1e-4 * randn(size(A)); % Create an error matrix
 B_pert = B_unpert + E';             % Create the perturbed back-projector
 
 % Define the total perturbation terms for AB and BA methods

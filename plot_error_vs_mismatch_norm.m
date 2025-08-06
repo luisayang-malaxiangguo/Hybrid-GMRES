@@ -9,12 +9,11 @@ function plot_error_vs_mismatch_norm()
 
 clear all;
 clc;
-close all;
 
 %% 1) Set up Test Problem, Noise, and Base Perturbation
 fprintf('1. Setting up the test problem...\n');
 n = 32;
-problem_name = 'heat';
+problem_name = 'deriv2';
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
 
 rng(0); % For reproducibility

@@ -6,12 +6,11 @@ function plot_error_surface()
 
 clear all;
 clc;
-close all;
 
 %% 1) Set up Test Problem and Parameters
 fprintf('1. Setting up the test problem...\n');
 n = 32;
-problem_name = 'shaw';
+problem_name = 'deriv2';
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
 
 % --- Add Noise and Perturbation ---

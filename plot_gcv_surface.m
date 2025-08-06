@@ -3,15 +3,13 @@ function plot_gcv_surface()
 % function value vs. (iteration, lambda) for BOTH hybrid methods.
 % It produces a separate figure for each method for clarity.
 
-%% 0) Clean Slate
 clear all;
 clc;
-close all;
 
 %% 1) Set up Test Problem and Parameters
 fprintf('1. Setting up the test problem...\n');
 n = 32;
-problem_name = 'shaw';
+problem_name = 'deriv2';
 [A, b_exact, ~] = generate_test_problem(problem_name, n);
 
 % --- Add Noise and Perturbation ---

@@ -9,12 +9,11 @@ function plot_spectral_analysis()
 
 clear all;
 clc;
-close all;
 
 %% 1) Set up Test Problem and True Eigenvalues
 fprintf('1. Setting up the test problem and computing true eigenvalues...\n');
 n = 32;
-problem_name = 'shaw';
+problem_name = 'deriv2';
 [A, b_exact, ~] = generate_test_problem(problem_name, n);
 
 % For this analysis, we use a slightly perturbed back-projector
