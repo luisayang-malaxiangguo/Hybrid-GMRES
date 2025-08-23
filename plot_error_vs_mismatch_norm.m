@@ -2,9 +2,8 @@ function plot_error_vs_mismatch_norm()
 % PLOT_ERROR_VS_MISMATCH_NORM Analyzes the robustness of hybrid GMRES
 % methods to increasing perturbations in the back-projector.
 %
-% This script generates a single log-log plot showing the final relative
-% solution error as a function of the mismatch norm ||B - A'||. It runs
-% the analysis for both hybrid AB- and BA-GMRES methods.
+% This generates a log-log plot showing the final relative
+% solution error as a function of the mismatch norm ||B - A'||
 
 
 clear all;
@@ -22,22 +21,22 @@ noise = randn(size(b_exact));
 noise = noise / norm(noise) * noise_level * norm(b_exact);
 b = b_exact + noise;
 
-% --- Create a base random perturbation matrix E ---
+%  Create a base random perturbation matrix E 
 % We will scale this matrix to control the mismatch norm.
 E = randn(size(A'));
 E = E / norm(E, 'fro'); % Normalize E to have a Frobenius norm of 1.
 
-% --- Solver Parameters ---
+%  Solver Parameters 
 maxit = 32;
 tol = 1e-8;
 
 %% 2) Define Perturbation Levels and Prepare for Loop
 fprintf('2. Preparing for perturbation analysis loop...\n');
 
-% --- Define a range of scaling factors for the perturbation ---
+%  Define a range of scaling factors for the perturbation 
 c_range = logspace(-8, -1, 20);
 
-% --- Initialize storage for results ---
+%  Initialize storage for results 
 mismatch_norms = zeros(size(c_range));
 final_errors_ab = zeros(size(c_range));
 final_errors_ba = zeros(size(c_range));
@@ -49,18 +48,18 @@ tic; % Start a timer
 for i = 1:length(c_range)
     c = c_range(i);
     
-    % --- Create the perturbation for this level ---
+    %  Create the perturbation for this level 
     current_perturbation = c * E;
     B_pert = A' + current_perturbation;
     
-    % --- Store the mismatch norm (the x-axis value) ---
+    %  Store the mismatch norm (the x-axis value) 
     mismatch_norms(i) = norm(current_perturbation, 'fro');
     
     % Define the DeltaM terms for the solvers
     DeltaM_AB = A * current_perturbation;
     DeltaM_BA = current_perturbation * A;
     
-    % --- Find optimal lambda for each method at this perturbation level ---
+    %  Find optimal lambda for each method at this perturbation level 
     k_gcv = 20;
     m = size(A,1);
     options = optimset('Display', 'off', 'TolX', 1e-8);
@@ -71,7 +70,7 @@ for i = 1:length(c_range)
     gcv_handle_ba = @(lambda) gcv_function(lambda, A, B_pert, b, m, k_gcv, 'ba');
     lambda_gcv_ba = fminbnd(gcv_handle_ba, 1e-9, 1e-1, options);
     
-    % --- Solve with each hybrid method and store the final error ---
+    %  Solve with each hybrid method and store the final error 
     [~, err_hist_ab, ~, ~] = ABgmres_hybrid_bounds(A, B_pert, b, x_true, tol, maxit, lambda_gcv_ab, DeltaM_AB);
     final_errors_ab(i) = err_hist_ab(end);
     
@@ -100,5 +99,5 @@ legend('show', 'Location', 'NorthWest');
 axis tight;
 set(gca, 'FontSize', 12);
 
-fprintf('--- Analysis complete. ---\n');
+fprintf(' Analysis complete. \n');
 end

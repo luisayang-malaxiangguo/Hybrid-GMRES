@@ -6,7 +6,7 @@ clear all; clc; close all;
 %% 1) Set up Test Problem
 fprintf('Setting up test problem...\n');
 n = 32;
-[A, b_exact, x_true] = generate_test_problem('deriv2', n);
+[A, b_exact, x_true] = generate_test_problem('heat', n);
 B = A'; % Using matched case for clarity, but inequivalence holds generally
  
 rng(0);
@@ -14,7 +14,7 @@ noise = randn(size(b_exact));
 b_noise = b_exact + 1e-2 * norm(b_exact) * noise / norm(noise);
  
 maxit = n;
-tol = 1e-10;
+tol = 1e-6;
 lambda = 1e-3;
 
 %% 2) Run PTR and RTP Solver Pairs
