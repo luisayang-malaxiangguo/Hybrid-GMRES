@@ -18,7 +18,7 @@ rng(0); % For reproducibility
 noise_level = 1e-2;
 noise = randn(size(b_exact));
 noise = noise / norm(noise) * noise_level * norm(b_exact);
-b = b_exact + noise;
+b_noise = b_exact + noise;
 
 E = 1e-4 * randn(size(A'));
 B_pert = A' + E;
@@ -41,12 +41,12 @@ for i = 1:length(lambda_range)
     lambda = lambda_range(i);
     
     % --- Run Hybrid AB-GMRES ---
-    [~, err_hist_ab, ~, ~] = ABgmres_hybrid_bounds(A, B_pert, b, x_true, 1e-10, n, lambda, DeltaM_AB);
+    [~, err_hist_ab, ~, ~] = ABgmres_hybrid_bounds(A, B_pert, b_noise, x_true, 1e-10, n, lambda, DeltaM_AB);
     if length(err_hist_ab) < n, err_hist_ab(end+1:n) = NaN; end
     error_surface_ab(i, :) = err_hist_ab;
     
     % --- Run Hybrid BA-GMRES ---
-    [~, err_hist_ba, ~, ~] = BAgmres_hybrid_bounds(A, B_pert, b, x_true, 1e-10, n, lambda, DeltaM_BA);
+    [~, err_hist_ba, ~, ~] = BAgmres_hybrid_bounds(A, B_pert, b_noise, x_true, 1e-10, n, lambda, DeltaM_BA);
     if length(err_hist_ba) < n, err_hist_ba(end+1:n) = NaN; end
     error_surface_ba(i, :) = err_hist_ba;
     

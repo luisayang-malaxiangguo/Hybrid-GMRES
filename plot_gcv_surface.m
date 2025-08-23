@@ -9,14 +9,14 @@ clc;
 %% 1) Set up Test Problem and Parameters
 fprintf('1. Setting up the test problem...\n');
 n = 32;
-problem_name = 'deriv2';
+problem_name = 'shaw';
 [A, b_exact, ~] = generate_test_problem(problem_name, n);
 
 % --- Add Noise and Perturbation ---
 rng(0); % For reproducibility
 noise_level = 1e-2;
 noise = randn(size(b_exact));
-b = b_exact + (noise / norm(noise)) * noise_level * norm(b_exact);
+b_noise = b_exact + (noise / norm(noise)) * noise_level * norm(b_exact);
 
 E = 1e-4 * randn(size(A'));
 B_pert = A' + E;
@@ -27,11 +27,11 @@ lambda_range = logspace(-8, -1, 100);
 
 %% 2) Compute GCV Surface for Hybrid AB-GMRES
 fprintf('2. Computing GCV surface for Hybrid AB-GMRES...\n');
-[gcv_surface_ab, gcv_path_ab] = compute_gcv_surface('ab', A, B_pert, b, n, k_range, lambda_range);
+[gcv_surface_ab, gcv_path_ab] = compute_gcv_surface('ab', A, B_pert, b_noise, n, k_range, lambda_range);
 
 %% 3) Compute GCV Surface for Hybrid BA-GMRES
 fprintf('3. Computing GCV surface for Hybrid BA-GMRES...\n');
-[gcv_surface_ba, gcv_path_ba] = compute_gcv_surface('ba', A, B_pert, b, n, k_range, lambda_range);
+[gcv_surface_ba, gcv_path_ba] = compute_gcv_surface('ba', A, B_pert, b_noise, n, k_range, lambda_range);
 
 %% 4) Generate Plot for Hybrid AB-GMRES
 fprintf('4. Generating plot for Hybrid AB-GMRES...\n');

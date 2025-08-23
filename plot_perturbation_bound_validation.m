@@ -1,15 +1,14 @@
 function plot_perturbation_bound_validation()
 % PLOT_PERTURBATION_BOUND_VALIDATION Validates the theoretical perturbation bounds
 % by comparing them against the actual change in filter factors.
-
+clc;clear all;close all
 %% 1) Set up Test Problem & Parameters
 n = 32;
-problem_name = 'deriv2'; % Moderately ill-posed, good for showing regularization
+problem_name = 'shaw'; % Moderately ill-posed, good for showing regularization
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
 lambda = 1e-3;
-k_to_plot = 30; % Choose k < n 
-maxit = k_to_plot;
-tol = 1e-8;
+maxit = n;
+tol = 1e-6;
 rng(0); % for reproducibility
 
 % Define unperturbed and perturbed back-projectors
@@ -22,14 +21,8 @@ DeltaM_AB = A * E;
 DeltaM_BA = E * A;
 
 %% 2) Run simulations for all four methods
-fprintf('Running simulations for k <= %d...\n', k_to_plot);
+fprintf('Running simulations for k <= %d...\n', maxit);
 
-% --- non-hybrid BA-GMRES ---
-[~,~,~,~,~,~, phi_ba_u, dphi_ba_bound] = BAgmres_nonhybrid_bounds(A, B_unpert, b_exact, x_true, tol, maxit, DeltaM_BA);
-[~,~,~,~,~,~, phi_ba_p, ~]             = BAgmres_nonhybrid_bounds(A, B_pert,   b_exact, x_true, tol, maxit, zeros(size(DeltaM_BA)));
-% --- non-hybrid AB-GMRES ---
-[~,~,~,~,~,~, phi_ab_u, dphi_ab_bound] = ABgmres_nonhybrid_bounds(A, B_unpert, b_exact, x_true, tol, maxit, DeltaM_AB);
-[~,~,~,~,~,~, phi_ab_p, ~]             = ABgmres_nonhybrid_bounds(A, B_pert,   b_exact, x_true, tol, maxit, zeros(size(DeltaM_AB)));
 % --- hybrid BA-GMRES ---
 [~,~,~,~,~,~, phi_hba_u, dphi_hba_bound] = BAgmres_hybrid_bounds(A, B_unpert, b_exact, x_true, tol, maxit, lambda, DeltaM_BA);
 [~,~,~,~,~,~, phi_hba_p, ~]              = BAgmres_hybrid_bounds(A, B_pert,   b_exact, x_true, tol, maxit, lambda, zeros(size(DeltaM_BA)));
@@ -42,18 +35,14 @@ fprintf('Simulations complete.\n');
 %% 3) Plot 2x2 comparison
 fprintf('Generating bound validation plot...\n');
 figure('Name', 'Perturbation Bound Validation', 'Position', [100 100 900 700]);
-t = tiledlayout(2, 2, 'TileSpacing', 'compact', 'Padding', 'compact');
+t = tiledlayout(2, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
 title(t, 'Validation of Perturbation Bounds at Final Iteration', 'FontSize', 14, 'FontWeight', 'bold');
 
-% --- Use a helper function for clean, robust plotting ---
-plot_single_bound(nexttile, phi_ab_u, phi_ab_p, dphi_ab_bound, 'non-hybrid AB-GMRES');
-plot_single_bound(nexttile, phi_ba_u, phi_ba_p, dphi_ba_bound, 'non-hybrid BA-GMRES');
 plot_single_bound(nexttile, phi_hab_u, phi_hab_p, dphi_hab_bound, 'hybrid AB-GMRES');
 plot_single_bound(nexttile, phi_hba_u, phi_hba_p, dphi_hba_bound, 'hybrid BA-GMRES');
 
 end
 
-% --- Local Helper Function for Plotting ---
 function plot_single_bound(ax, phi_u, phi_p, dphi_bound, plot_title)
     
     % Determine the actual number of iterations completed

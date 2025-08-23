@@ -8,7 +8,7 @@ function analyze_regularization()
 %% 1) Set up Test Problem & Parameters
 fprintf('1. Setting up the test problem...\n');
 n = 32;
-problem_name = 'deriv2';
+problem_name = 'shaw';
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
 % --- Add Noise and Perturbation ---
 rng(0); % For reproducibility
@@ -22,7 +22,7 @@ DeltaM_AB = A * E; % Perturbation term for AB-GMRES
 DeltaM_BA = E * A; % Perturbation term for BA-GMRES
 % --- Solver Parameters ---
 maxit = 32; % Run to full dimension for analysis
-tol = 1e-8;
+tol = 1e-6;
 lambda_range = logspace(-10, 0, 100);
 %% 2) Loop Through Lambda Range to Collect Data for Plots
 fprintf('2. Running solvers for a range of lambda values to generate plot data...\n');

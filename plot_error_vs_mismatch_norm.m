@@ -1,25 +1,21 @@
 function plot_error_vs_mismatch_norm()
-% PLOT_ERROR_VS_MISMATCH_NORM Analyzes the robustness of hybrid GMRES
-% methods to increasing perturbations in the back-projector.
-%
-% This generates a log-log plot showing the final relative
+%This generates a log-log plot showing the final relative
 % solution error as a function of the mismatch norm ||B - A'||
 
 
-clear all;
-clc;
+clear all; clc; close all;
 
 %% 1) Set up Test Problem, Noise, and Base Perturbation
 fprintf('1. Setting up the test problem...\n');
 n = 32;
-problem_name = 'deriv2';
+problem_name = 'heat';
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
 
 rng(0); % For reproducibility
 noise_level = 1e-2;
 noise = randn(size(b_exact));
 noise = noise / norm(noise) * noise_level * norm(b_exact);
-b = b_exact + noise;
+b_noise = b_exact + noise;
 
 %  Create a base random perturbation matrix E 
 % We will scale this matrix to control the mismatch norm.
@@ -27,8 +23,8 @@ E = randn(size(A'));
 E = E / norm(E, 'fro'); % Normalize E to have a Frobenius norm of 1.
 
 %  Solver Parameters 
-maxit = 32;
-tol = 1e-8;
+maxit = n;
+tol = 1e-6;
 
 %% 2) Define Perturbation Levels and Prepare for Loop
 fprintf('2. Preparing for perturbation analysis loop...\n');
@@ -64,17 +60,17 @@ for i = 1:length(c_range)
     m = size(A,1);
     options = optimset('Display', 'off', 'TolX', 1e-8);
 
-    gcv_handle_ab = @(lambda) gcv_function(lambda, A, B_pert, b, m, k_gcv, 'ab');
+    gcv_handle_ab = @(lambda) gcv_function(lambda, A, B_pert, b_noise, m, k_gcv, 'ab');
     lambda_gcv_ab = fminbnd(gcv_handle_ab, 1e-9, 1e-1, options);
     
-    gcv_handle_ba = @(lambda) gcv_function(lambda, A, B_pert, b, m, k_gcv, 'ba');
+    gcv_handle_ba = @(lambda) gcv_function(lambda, A, B_pert, b_noise, m, k_gcv, 'ba');
     lambda_gcv_ba = fminbnd(gcv_handle_ba, 1e-9, 1e-1, options);
     
     %  Solve with each hybrid method and store the final error 
-    [~, err_hist_ab, ~, ~] = ABgmres_hybrid_bounds(A, B_pert, b, x_true, tol, maxit, lambda_gcv_ab, DeltaM_AB);
+    [~, err_hist_ab, ~, ~] = ABgmres_hybrid_bounds(A, B_pert, b_noise, x_true, tol, maxit, lambda_gcv_ab, DeltaM_AB);
     final_errors_ab(i) = err_hist_ab(end);
     
-    [~, err_hist_ba, ~, ~] = BAgmres_hybrid_bounds(A, B_pert, b, x_true, tol, maxit, lambda_gcv_ba, DeltaM_BA);
+    [~, err_hist_ba, ~, ~] = BAgmres_hybrid_bounds(A, B_pert, b_noise, x_true, tol, maxit, lambda_gcv_ba, DeltaM_BA);
     final_errors_ba(i) = err_hist_ba(end);
     
     fprintf('   - Level %d/%d complete. Mismatch Norm: %.2e, Error (AB): %.3f, Error (BA): %.3f\n', ...

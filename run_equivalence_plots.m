@@ -4,15 +4,15 @@ clear; clc; close all;
 %% 1) Set up Test Problem
 fprintf('Setting up test problem...\n');
 n = 32;
-[A, b_exact, x_true] = generate_test_problem('shaw', n);
+[A, b_exact, x_true] = generate_test_problem('deriv2', n);
 B = A'; % Matched-transpose case
  
 rng(0);
 noise = randn(size(b_exact));
 b_noise = b_exact + 1e-2 * norm(b_exact) * noise / norm(noise);
 maxit = n;
-tol = 1e-10;
-lambda = 1e-6;
+tol = 1e-6;
+lambda = 1e-3;
 %% 2) Run Solvers to Collect Data
 fprintf('Running solver pairs...\n'); 
 % Pair 1: BA-GMRES vs LSMR (Non-hybrid)

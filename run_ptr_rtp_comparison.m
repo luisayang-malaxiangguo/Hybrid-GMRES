@@ -6,7 +6,7 @@ clear all; clc; close all;
 %% 1) Set up Test Problem
 fprintf('Setting up test problem...\n');
 n = 32;
-[A, b_exact, x_true] = generate_test_problem('heat', n);
+[A, b_exact, x_true] = generate_test_problem('deriv2', n);
 B = A'; % Using matched case for clarity, but inequivalence holds generally
  
 rng(0);
