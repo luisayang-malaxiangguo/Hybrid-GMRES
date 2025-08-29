@@ -40,8 +40,7 @@ Phi_emp_hab = sigma .* (V' * x_hab) ./ d;
 Phi_emp_hba = sigma .* (V' * x_hba) ./ d;
 
 figure('Name', 'Final Filter Factor Comparison', 'Position', [100 100 800 600]);
-
-% Subplot 1: non-hybrid AB
+ 
 subplot(2,2,1);
 kmin = min(numel(phi_ab_final), numel(Phi_emp_ab));
 plot(1:kmin, real(phi_ab_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
@@ -50,8 +49,7 @@ hold off; grid on;
 title('AB-GMRES (non-hybrid)');
 xlabel('Mode index i'); ylabel('Filter factor \phi_i');
 legend('Theoretical', 'Empirical', 'Location', 'Best');
-
-% Subplot 2: non-hybrid BA
+ 
 subplot(2,2,2);
 kmin = min(numel(phi_ba_final), numel(Phi_emp_ba));
 plot(1:kmin, real(phi_ba_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
@@ -60,8 +58,7 @@ hold off; grid on;
 title('BA-GMRES (non-hybrid)');
 xlabel('Mode index i'); ylabel('Filter factor \phi_i');
 legend('Theoretical', 'Empirical', 'Location', 'Best');
-
-% Subplot 3: hybrid AB
+ 
 subplot(2,2,3);
 kmin = min(numel(phi_hab_final), numel(Phi_emp_hab));
 plot(1:kmin, real(phi_hab_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
@@ -70,8 +67,7 @@ hold off; grid on;
 title('AB-GMRES (hybrid)');
 xlabel('Mode index i'); ylabel('Filter factor \phi_i');
 legend('Theoretical', 'Empirical', 'Location', 'Best');
-
-% Subplot 4: hybrid BA
+ 
 subplot(2,2,4);
 kmin = min(numel(phi_hba_final), numel(Phi_emp_hba));
 plot(1:kmin, real(phi_hba_final(1:kmin)), '--', 'LineWidth', 1.6); hold on;
@@ -113,4 +109,5 @@ ylabel('||b - Ax_k|| / ||b||');
 legend('Location', 'Best');
 grid on;
 end
+
 
