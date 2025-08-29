@@ -1,49 +1,37 @@
-function plot_filter_factors()
-%% 1) Set up Test Problem
+function plot_filter_factors() 
 n = 32;
 problem_to_run = 'shaw';
 [A, b_exact, x_true] = generate_test_problem(problem_to_run, n);
 
-rng(0); % For reproducibility
-noise_level = 1e-3; %optimal lambda to check results from run_all_methods_with_true_optimal_lambda
+rng(0); 
+noise_level = 1e-3;  
 noise = randn(size(b_exact));
 noise = noise / norm(noise) * noise_level * norm(b_exact);
-b_noise = b_exact + noise; % Noisy right-hand side
-
-%% 2) Algorithm Parameters
+b_noise = b_exact + noise; 
 tol     = 1e-6;
-maxit   = n;      % Run to full dimension
+maxit   = n;       
 lambda  = 1e-3;
-B       = A';     % Matched back-projector
-% Use a fixed seed for the random perturbation for reproducibility
-rng(0); 
-% Define perturbation E and perturbed matrix B
+B       = A';    
+rng(0);  
 E = 1e-4 * randn(size(A'));
-B= A' + E;
-
-% Define the total perturbation terms for AB and BA methods
+B= A' + E; 
 DeltaM_AB = A * E;
 DeltaM_BA = E * A;
 
-%% 3) Run Each Method & Collect Full Iterative History
-fprintf('Running GMRES variants...\n');
+%%  
 
 [x_ab, err_ab, res_ab, it_ab, phi_ab_final, dphi_ab_final, phi_ab_iter,  dphi_ab_iter] = ABgmres_nonhybrid_bounds(A, B, b_noise, x_true, tol, maxit, DeltaM_AB);
 [x_ba, err_ba, res_ba, it_ba, phi_ba_final, dphi_ba_final, phi_ba_iter,  dphi_ba_iter] = BAgmres_nonhybrid_bounds(A, B, b_noise, x_true, tol, maxit, DeltaM_BA);
 [x_hab, err_hab, res_hab, it_hab, phi_hab_final, dphi_hab_final, phi_hab_iter, dphi_hab_iter] = ABgmres_hybrid_bounds(A, B, b_noise, x_true, tol, maxit, lambda, DeltaM_AB);
 [x_hba, err_hba, res_hba, it_hba, phi_hba_final, dphi_hba_final, phi_hba_iter, dphi_hba_iter] = BAgmres_hybrid_bounds(A, B, b_noise, x_true, tol, maxit, lambda, DeltaM_BA);
 
-fprintf('All methods complete.\n');
-
-%% 4) Plot 1: Final Theoretical vs. Empirical Factors (2x2 Subplot)
-fprintf('Generating final filter factor comparison plot...\n');
-
-% Compute empirical filters  
+%% 4) Plot 1: Final Theoretical vs. Empirical Factors (2x2 Subplot) 
+ 
 [U,S,V] = svd(A,'econ');
 sigma   = diag(S);
 d       = U' * b_noise;
 
-% Ensure division by d is safe for near-zero values
+% division by d is ok for near-zero values
 d(abs(d) < 1e-12) = 1; 
 
 Phi_emp_ab  = sigma .* (V' * x_ab) ./ d;
@@ -94,13 +82,12 @@ xlabel('Mode index i'); ylabel('Filter factor \phi_i');
 legend('Theoretical', 'Empirical', 'Location', 'Best');
 
 
-
-%% Plot 5: Unified Convergence History
+%% Convergence 
 
 figure('Name', 'Unified Convergence History', 'Position', [100 100 1000 400]);
 lw = 1.8;
 
-% Subplot for Relative Error
+% Relative Error
 subplot(1, 2, 1);
 semilogy(1:it_ab, err_ab, '--', 'LineWidth', lw, 'DisplayName', 'non-hybrid AB'); hold on;
 semilogy(1:it_ba, err_ba, ':', 'LineWidth', lw, 'DisplayName', 'non-hybrid BA');
@@ -113,7 +100,7 @@ ylabel('||x_k - x_{true}|| / ||x_{true}||');
 legend('Location', 'Best');
 grid on;
 
-% Subplot for Relative Residual
+% Relative Residual
 subplot(1, 2, 2);
 semilogy(1:it_ab, res_ab, '--', 'LineWidth', lw, 'DisplayName', 'non-hybrid AB'); hold on;
 semilogy(1:it_ba, res_ba, ':', 'LineWidth', lw, 'DisplayName', 'non-hybrid BA');
