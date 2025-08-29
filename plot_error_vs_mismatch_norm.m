@@ -7,7 +7,7 @@ n = 32;
 problem_name = 'heat';
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
 
-rng(0); % 
+rng(0); 
 noise_level = 1e-2;
 noise = randn(size(b_exact));
 noise = noise / norm(noise) * noise_level * norm(b_exact);
@@ -78,4 +78,5 @@ set(gca, 'FontSize', 12);
 
 fprintf(' Analysis complete. \n');
 end
+
 
