@@ -1,11 +1,9 @@
 function [x, error_norm, residual_norm, niters] = hybrid_ab_gmres_rtp(A, B, b, x_true, tol, maxit, lambda)
 % HYBRID_AB_GMRES_RTP Regularize-then-Project version of Hybrid AB-GMRES.
-% The iterate x_k lies in K_k(BA + lambda*I, Bb) and solves min{||Ax-b||^2 + lambda*||x||^2}.
 
     n = size(A, 2);
     x0 = zeros(n, 1);
 
-    % The Krylov subspace is K_k(BA + lambda*I, Bb)
     M_reg_op = @(v) B*(A*v) + lambda*v;
     d_krylov = B*b;
     
@@ -29,11 +27,7 @@ function [x, error_norm, residual_norm, niters] = hybrid_ab_gmres_rtp(A, B, b, x
         Q(:, k + 1) = v / H(k + 1, k);
         
         Qk = Q(:, 1:k);
-        
-        %  Solve the Tikhonov problem projected onto that subspace 
-        % min ||A*Qk*y - b||^2 + lambda*||Qk*y||^2
-        % This is equivalent to solving for y in:
-        % ((AQk)'(AQk) + lambda*I) y = (AQk)' b
+    
         
         AQk = A * Qk;
         yk = (AQk' * AQk + lambda * eye(k)) \ (AQk' * b);
@@ -48,4 +42,5 @@ function [x, error_norm, residual_norm, niters] = hybrid_ab_gmres_rtp(A, B, b, x
     niters = k;
     residual_norm = residual_norm(1:k);
     error_norm = error_norm(1:k);
+
 end
