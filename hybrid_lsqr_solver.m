@@ -1,9 +1,7 @@
 function [x, error_norm, residual_norm, niters] = hybrid_lsqr_solver(A, b, x_true, tol, maxit, lambda)
-% HYBRID_LSQR_SOLVER: LSQR on the augmented system.
 
     [m, n] = size(A);
-    
-    % Form  augmented matrix  
+      
     A_aug = [A; sqrt(lambda) * eye(n)];
     b_aug = [b; zeros(n, 1)];
      
@@ -50,4 +48,5 @@ function [x, error_norm, residual_norm, niters] = hybrid_lsqr_solver(A, b, x_tru
     niters = k;
     error_norm = error_norm(1:k);
     residual_norm = residual_norm(1:k);
+
 end
