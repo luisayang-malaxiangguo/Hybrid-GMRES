@@ -1,5 +1,4 @@
-function [x, error_norm, residual_norm, niters] = hybrid_ab_gmres_rtp(A, B, b, x_true, tol, maxit, lambda)
-% HYBRID_AB_GMRES_RTP Regularize-then-Project version of Hybrid AB-GMRES.
+function [x, error_norm, residual_norm, niters] = hybrid_ab_gmres_rtp(A, B, b, x_true, tol, maxit, lambda) 
 
     n = size(A, 2);
     x0 = zeros(n, 1);
@@ -44,3 +43,4 @@ function [x, error_norm, residual_norm, niters] = hybrid_ab_gmres_rtp(A, B, b, x
     error_norm = error_norm(1:k);
 
 end
+
