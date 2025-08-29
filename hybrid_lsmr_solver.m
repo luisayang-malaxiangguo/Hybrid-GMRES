@@ -1,5 +1,4 @@
 function [x, error_norm, residual_norm, niters] = hybrid_lsmr_solver(A, b, x_true, tol, maxit, lambda)
-% HYBRID_LSMR_SOLVER Solves Tikhonov problem using Hybrid LSMR.
 
     n = size(A, 2);
     x = zeros(n, 1);
@@ -54,4 +53,5 @@ function [x, error_norm, residual_norm, niters] = hybrid_lsmr_solver(A, b, x_tru
     niters = k;
     error_norm = error_norm(1:k);
     residual_norm = residual_norm(1:k);
+
 end
