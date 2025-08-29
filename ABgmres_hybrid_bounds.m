@@ -5,12 +5,9 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
     m = size(A, 1);
     [U_M, D_M] = eig(M);
     mu_full = real(diag(D_M));
-    % Sort for consistent mode analysis
     [mu_full, sort_idx] = sort(mu_full, 'descend');
-    % matrix UA used later for eigenvectors of M
     UA = U_M(:, sort_idx);
 
-    %--- Arnoldi + Tikhonov Setup ---
     z0    = zeros(size(B,2),1);
     r0    = b - A*(B*z0);
     beta  = norm(r0);
@@ -21,12 +18,10 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
     residual_norm = zeros(maxit,1);
     error_norm    = zeros(maxit,1);
     
-    % Initialize 
     phi_iter = cell(maxit, 1);
     dphi_iter = cell(maxit, 1);
 
     for k = 1:maxit
-        % Arnoldi step on M = A*B
         v = A*(B*Q(:,k));
         for j = 1:k
             H(j,k) = Q(:,j)'*v;
@@ -36,7 +31,6 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         if H(k+1,k) == 0, break; end
         Q(:,k+1) = v / H(k+1,k);
         
-        % Projected Tikhonov
         Hk = H(1:k+1,1:k);
         tk = e1(1:k+1);
         yk = (Hk'*Hk + lambda*eye(k)) \ (Hk'*tk);
@@ -47,10 +41,8 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         error_norm(k)    = norm(xk - x_true)/norm(x_true);
         
         Qk_current = Q(:,1:k);
-        % For AB-GMRES, the perturbation to M=AB is DeltaM, which is assumed to be A*E'
         dK_small_current = Qk_current' * DeltaM * Qk_current;
 
-        % Compute harmonic-Ritz values of M + lambda*I
         Hk_small_current = H(1:k, 1:k);
         ek_current       = zeros(k,1); ek_current(end) = 1;
         P_unreg = Hk_small_current + (H(k+1,k)^2) * (Hk_small_current'\(ek_current*ek_current'));
@@ -60,7 +52,6 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         [Theta_current, p_sort] = sort(Theta_current);
         W_current = W_current(:,p_sort);
 
-        % Compute perturbations dTheta and dMu
         dTheta_current = real(diag(W_current' * dK_small_current * W_current));
         dMu_current = sum(UA(:,1:k) .* (DeltaM * UA(:,1:k)), 1)';
         
@@ -81,7 +72,6 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         P_final = exp(Clog_current);
         phi_current = (mu_current ./ s2l) .* (1 - P_final);
         
-        % HYBRID perturbation bound 
         term1 = - (mu_current) .* sum((dTheta_current.' ./ Theta_current.'.^2) .* P_excl_current, 2);
         term2 =   (lambda ./ s2l.^2) .* (1 - P_final) .* dMu_current;
         term3 =   (mu_current ./ s2l) .* sum((1./Theta_current') .* P_excl_current, 2) .* dMu_current;
@@ -104,4 +94,5 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
     dphi_iter = dphi_iter(1:k);
 
 end
+
 
