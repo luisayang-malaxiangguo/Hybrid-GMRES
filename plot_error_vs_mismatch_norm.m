@@ -38,7 +38,7 @@ for i = 1:length(c_range)
     DeltaM_AB = A * current_perturbation;
     DeltaM_BA = current_perturbation * A;
     
-    %  Find optimal lambda for each method at this perturbation level 
+    %  optimal lambda for each method 
     k_gcv = 20;
     m = size(A,1);
     options = optimset('Display', 'off', 'TolX', 1e-8);
@@ -61,7 +61,7 @@ for i = 1:length(c_range)
 end
 toc;
 
-%% 4) Plot
+%%  
 figure('Name', 'Error vs. Mismatch Norm', 'Position', [300 300 800 600]);
 loglog(mismatch_norms, final_errors_ab, 'b-o', 'LineWidth', 2, 'MarkerSize', 6, 'DisplayName', 'Hybrid AB-GMRES');
 hold on;
@@ -77,6 +77,7 @@ axis tight;
 set(gca, 'FontSize', 12);
 
 end
+
 
 
 
