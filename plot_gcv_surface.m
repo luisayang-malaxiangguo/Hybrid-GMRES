@@ -56,11 +56,10 @@ end
 
 
 function [gcv_surface, gcv_path] = compute_gcv_surface(method_type, A, B, b, n, k_range, lambda_range)
-    % Initialize storage
+ 
     gcv_surface = zeros(length(lambda_range), length(k_range));
     gcv_path = zeros(length(k_range), 1);
-
-    % Set up operator based on method type
+ 
     if strcmp(method_type, 'ab')
         op = @(v) A * (B * v);
         r0 = b;
@@ -121,4 +120,5 @@ function gcv_val = calculate_gcv_from_H(Hk, tk, lambda, problem_size)
         gcv_val = 1e20; % Return a large value if unstable
     end
 end
+
 
