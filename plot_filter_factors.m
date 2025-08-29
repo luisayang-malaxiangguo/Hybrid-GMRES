@@ -25,7 +25,7 @@ DeltaM_BA = E * A;
 [x_hab, err_hab, res_hab, it_hab, phi_hab_final, dphi_hab_final, phi_hab_iter, dphi_hab_iter] = ABgmres_hybrid_bounds(A, B, b_noise, x_true, tol, maxit, lambda, DeltaM_AB);
 [x_hba, err_hba, res_hba, it_hba, phi_hba_final, dphi_hba_final, phi_hba_iter, dphi_hba_iter] = BAgmres_hybrid_bounds(A, B, b_noise, x_true, tol, maxit, lambda, DeltaM_BA);
 
-%% 4) Plot 1: Final Theoretical vs. Empirical Factors (2x2 Subplot) 
+%% Theoretical vs. Empirical Factors (2x2 Subplot) 
  
 [U,S,V] = svd(A,'econ');
 sigma   = diag(S);
@@ -113,3 +113,4 @@ ylabel('||b - Ax_k|| / ||b||');
 legend('Location', 'Best');
 grid on;
 end
+
