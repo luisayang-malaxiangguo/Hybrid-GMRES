@@ -1,6 +1,5 @@
 function [x, error_norm, residual_norm, niters] = hybrid_ba_gmres_rtp(A, B, b, x_true, tol, maxit, lambda)
-% HYBRID_BA_GMRES_RTP Regularize-then-Project version of Hybrid BA-GMRES.
-% Applies GMRES to the system (BA + lambda*I)x = Bb.
+% HYBRID_BA_GMRES_RTP Regularize-then-Project version of Hybrid BA-GMRES
 
     n = size(A, 2);
     x = zeros(n, 1);
@@ -27,7 +26,6 @@ function [x, error_norm, residual_norm, niters] = hybrid_ba_gmres_rtp(A, B, b, x
         if H(k + 1, k) == 0, break; end
         Q(:, k + 1) = v / H(k + 1, k);
 
-        %  Solve projected LEAST SQUARES  
         Hk = H(1:k + 1, 1:k);
         yk = Hk \ ([beta; zeros(k, 1)]);
         x = Q(:, 1:k) * yk;
@@ -41,4 +39,5 @@ function [x, error_norm, residual_norm, niters] = hybrid_ba_gmres_rtp(A, B, b, x
     niters = k;
     residual_norm = residual_norm(1:k);
     error_norm = error_norm(1:k);
+
 end
