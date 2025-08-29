@@ -59,7 +59,7 @@ function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol
         zetabar = -sbar * zetabar;
 
         if k == 1
-            hbar = h;  % factor is zero on the first step
+            hbar = h;   
         else
             hbar = h - (thetabar * rho)/(rhoold * rhobarold) * hbar;
         end
@@ -81,4 +81,5 @@ function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol
     res_hist = res_hist(1:iters);
     ar_hist  = ar_hist(1:iters);
 end
+
 
