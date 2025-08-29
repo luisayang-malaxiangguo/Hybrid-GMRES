@@ -1,17 +1,13 @@
 function run_2D_phantom()
 
-clear all; clc; close all;
-fprintf('Starting Final Thesis Experiments...\n\n');
+clear all; clc; close all; 
 
 n         = 32;          
 noise_lvl = 0.25;         
 maxit     = 80;          
 lambda    = 1e-2;        
 tol       = 1e-6;        
-
-%% 2. GENERATE THE 2D TOMOGRAPHY PROBLEM 
-
-fprintf('Generating %d x %d mismatched tomography problem...\n', n, n);
+ 
  
 options.CTtype = 'fancurved';
 [Problem, b_exact, x_true] = PRtomo_mismatched(n, options);
@@ -22,24 +18,16 @@ rng(0);
 e = randn(size(b_exact));
 e = e / norm(e) * noise_lvl * norm(b_exact);
 b_noise = b_exact + e;
-
-%% FIGURE 1: SINOGRAM
-
+ 
 num_angles = 90;
 num_detectors = 90;
-
-% Check if our numbers are correct
-assert(numel(b_exact) == num_angles * num_detectors, ...
-    'Sinogram dimensions are incorrect!');
-
-% Reshape the data vectors into 2D sinograms
+  
 sino_exact = reshape(b_exact, num_detectors, num_angles);
 sino_noisy = reshape(b_noise, num_detectors, num_angles);
 
 figure('Name', 'Figure 1: Sinogram Data');
 sgtitle('Sinogram of the Shepp-Logan Phantom', 'FontSize', 14, 'FontWeight', 'bold');
-
-% Plot the clean sinogram
+ 
 subplot(1, 2, 1);
 imagesc(sino_exact);
 colormap gray;
@@ -48,8 +36,7 @@ xlabel('Projection Index (k)', 'FontSize', 12);
 ylabel('Detector Element', 'FontSize', 12);
 title('a) Clean Sinogram (b_{exact})', 'FontSize', 12);
 colorbar;
-
-% Plot the noisy sinogram
+ 
 subplot(1, 2, 2);
 imagesc(sino_noisy);
 colormap gray;
@@ -57,23 +44,13 @@ axis xy;
 xlabel('Projection Index (k)', 'FontSize', 12);
 title(sprintf('b) Noisy Sinogram (%.0f%% noise)', noise_lvl*100), 'FontSize', 12);
 colorbar;
-
-%% RUN SOLVERS
-
-fprintf('Running solvers for initial reconstructions...\n');
-
-% Run all four solvers using the initial mismatched B from the generator
+ 
 [x_nonhy_ab, err_nonhy_ab, it_nonhy_ab] = gmres_nonhybrid_simple(A, B, b_noise, x_true, tol, maxit, 'AB');
 [x_nonhy_ba, err_nonhy_ba, it_nonhy_ba] = gmres_nonhybrid_simple(A, B, b_noise, x_true, tol, maxit, 'BA');
 [x_hy_ab, err_hy_ab, it_hy_ab] = gmres_hybrid_simple(A, B, b_noise, x_true, tol, maxit, lambda, 'AB');
 [x_hy_ba, err_hy_ba, it_hy_ba] = gmres_hybrid_simple(A, B, b_noise, x_true, tol, maxit, lambda, 'BA');
-
-fprintf('Initial solvers finished.\n\n');
-
-fprintf('Generating figures...\n');
-
-
-%% FIGURE: Reconstruction Quality Comparison
+ 
+%% Reconstruction Quality Comparison
 
 figure('Name', 'Figure 1: 2D Reconstruction Quality Comparison');
 sgtitle('Comparison of 2D Reconstruction Methods', 'FontSize', 14, 'FontWeight', 'bold');
@@ -82,7 +59,7 @@ subplot(2, 2, 2); imagesc(reshape(x_nonhy_ba, n, n)); colormap gray; axis image;
 subplot(2, 2, 3); imagesc(reshape(x_hy_ab, n, n)); colormap gray; axis image; axis off; title(sprintf('c) Hybrid AB-GMRES'), 'FontSize', 12);
 subplot(2, 2, 4); imagesc(reshape(x_hy_ba, n, n)); colormap gray; axis image; axis off; title(sprintf('d) Hybrid BA-GMRES'), 'FontSize', 12);
 
-%% FIGURE: Semi-Convergence and Regularization Effect
+%% Semi-Convergence 
 
 figure('Name', 'Figure 2: Semi-Convergence');
 semilogy(1:it_nonhy_ab, err_nonhy_ab, '--', 'LineWidth', 2, 'DisplayName', 'Non-Hybrid AB');
@@ -96,7 +73,7 @@ xlabel('Iteration (k)', 'FontSize', 12);
 ylabel('Relative Error ||x_k - x_{true}|| / ||x_{true}||', 'FontSize', 12);
 legend('show', 'Location', 'best');
 hold off
-%% FIGURE: Robustness to Mismatch
+%% Robustness to Mismatch
 
 figure('Name', 'Figure 3: Robustness to Mismatch');
 mismatch_levels = logspace(-4, 0, 10);
@@ -104,8 +81,7 @@ errors_hy_ab = zeros(size(mismatch_levels));
 errors_hy_ba = zeros(size(mismatch_levels));
 errors_nonhy_ab = zeros(size(mismatch_levels));
 errors_nonhy_ba = zeros(size(mismatch_levels));
-
-fprintf('Running mismatch robustness test...\n');
+ 
 h = waitbar(0, 'Testing robustness to mismatch...');
 for i = 1:length(mismatch_levels)
     E = randn(size(A'));
@@ -137,9 +113,7 @@ xlabel('Mismatch Norm ||B - A^T||_F', 'FontSize', 12);
 ylabel('Final Relative Error', 'FontSize', 12);
 legend('show', 'Location', 'best');
  
-
-
-%% HELPER FUNCTIONS
+ 
 function [x, error_norm, niters] = gmres_nonhybrid_simple(A, B, b, x_true, tol, maxit, method_type)
  
     if strcmp(method_type, 'AB')
@@ -200,4 +174,5 @@ function [x, error_norm, niters] = gmres_hybrid_simple(A, B, b, x_true, tol, max
         end
     end
 end
+
 end
