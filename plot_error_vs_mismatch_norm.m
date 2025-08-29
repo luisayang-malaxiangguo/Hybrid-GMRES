@@ -76,7 +76,7 @@ legend('show', 'Location', 'NorthWest');
 axis tight;
 set(gca, 'FontSize', 12);
 
-fprintf(' Analysis complete. \n');
 end
+
 
 
