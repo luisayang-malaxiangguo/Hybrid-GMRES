@@ -40,7 +40,7 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
         error_norm(k)    = norm(xk - x_true)/norm(x_true);
         
         Qk_current = Q(:,1:k);
-        dK_small_current = Qk_current' * (DeltaM * Qk_current); % Note: M = B*A, so DeltaM perturbs B*A
+        dK_small_current = Qk_current' * (DeltaM * Qk_current); 
         Hk_full_current  = H(1:k+1, 1:k);
         Hk_small_current = H(1:k, 1:k);
         [W_current, Th_eig] = eig(Hk_full_current'*Hk_full_current, Hk_small_current);
@@ -90,3 +90,4 @@ function [x, error_norm, residual_norm, niters, phi_final, dphi_final, phi_iter,
     dphi_iter = dphi_iter(1:k);
 
 end
+
