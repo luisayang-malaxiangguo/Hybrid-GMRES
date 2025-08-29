@@ -1,6 +1,4 @@
 function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol, maxit)
-% LSMR_SOLVER LSMR for min||Ax-b||_2 
-% Implements the two-rotation algorithm from Fong & Saunders (2011)
 
     if nargin < 4 || isempty(tol),   tol   = 1e-6; end
     [m,n] = size(A);
@@ -41,7 +39,6 @@ function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol
         alpha = norm(v);
         if alpha > 0, v = v/alpha; end
 
-        %  First rotation Q_k: [alphahat; beta] -> [rho; 0]
         alphahat = alphabar;      
         rhoold = rho;
         rho = hypot(alphahat, beta);
@@ -51,7 +48,6 @@ function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol
         thetanew = s*alpha;
         alphabar = c*alpha;
 
-        %  Second rotation Q̄_k: [cbar*rho; thetanew] -> [rhobar; 0]
         rhobarold = rhobar;
         thetabar  = sbar * rho;
         rhobar    = hypot(cbar*rho, thetanew);
@@ -62,7 +58,6 @@ function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol
         zeta    = cbar * zetabar;
         zetabar = -sbar * zetabar;
 
-        %  Update \bar{h}_k, x_k, and h_{k+1}  (Algorithm (2.10)) 
         if k == 1
             hbar = h;  % factor is zero on the first step
         else
@@ -73,7 +68,7 @@ function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol
 
         r = b - A*x;
         res_hist(k) = norm(r) / (norm(b)+eps);
-        ar_hist(k)  = norm(A.'*r) / (norm(A,'fro')*max(norm(r),eps));  % a simple normalized optimality residual
+        ar_hist(k)  = norm(A.'*r) / (norm(A,'fro')*max(norm(r),eps));  
         if nargin >= 3 && ~isempty(x_true)
             err_hist(k) = norm(x - x_true) / norm(x_true);
         end
@@ -86,3 +81,4 @@ function [x, err_hist, res_hist, ar_hist, iters] = lsmr_solver(A, b, x_true, tol
     res_hist = res_hist(1:iters);
     ar_hist  = ar_hist(1:iters);
 end
+
