@@ -46,7 +46,7 @@ for i = 1:length(lambda_range)
 end
 toc;  
 
-%% 3) Generate Plot for Hybrid AB-GMRES 
+%% 3) Hybrid AB-GMRES 
 
 % optimal point for AB-GMRES
 [min_val_ab, min_idx_flat_ab] = min(error_surface_ab(:));
@@ -98,6 +98,5 @@ legend('show', 'Location', 'NorthEast');
 grid on;
 set(gca, 'FontSize', 12);
 
-fprintf('--- Analysis complete. ---\n');
-
 end
+
