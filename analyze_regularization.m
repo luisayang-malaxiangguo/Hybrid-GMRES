@@ -1,10 +1,5 @@
 function analyze_regularization()
-%   1. L-Curve and Error-vs-Lambda for Hybrid AB-GMRES.
-%   2. L-Curve and Error-vs-Lambda for Hybrid BA-GMRES.
-%   3. comparison of the solutions from both HYBRID methods.
-%   4. comparison of solutions from ALL FOUR methods.
-
-%% 1) Set up Test Problem & Parameters
+ 
 n = 32;
 problem_name = 'shaw';
 [A, b_exact, x_true] = generate_test_problem(problem_name, n);
@@ -21,43 +16,40 @@ DeltaM_BA = E * A;
 
 maxit = 32;
 tol = 1e-6;
-lambda_range = logspace(-10, 0, 100);
-%% 2) Loop Through Lambda Range to Collect Data for Plots
+lambda_range = logspace(-10, 0, 100); 
 res_norms_ab = zeros(size(lambda_range)); sol_norms_ab = zeros(size(lambda_range)); err_norms_ab = zeros(size(lambda_range));
 res_norms_ba = zeros(size(lambda_range)); sol_norms_ba = zeros(size(lambda_range)); err_norms_ba = zeros(size(lambda_range));
 for i = 1:length(lambda_range)
-    lambda = lambda_range(i);
-    % Solve with Hybrid AB-GMRES
+    lambda = lambda_range(i); 
     [x_ab, err_ab, ~, ~] = ABgmres_hybrid_bounds(A, B_pert, b, x_true, tol, maxit, lambda, DeltaM_AB);
     res_norms_ab(i) = norm(b - A * x_ab) / norm(b);
     sol_norms_ab(i) = norm(x_ab);
     err_norms_ab(i) = err_ab(end);
-    
-    % Solve with Hybrid BA-GMRES
+     
     [x_ba, err_ba, ~, ~] = BAgmres_hybrid_bounds(A, B_pert, b, x_true, tol, maxit, lambda, DeltaM_BA);
     res_norms_ba(i) = norm(b - A * x_ba) / norm(b);
     sol_norms_ba(i) = norm(x_ba);
     err_norms_ba(i) = err_ba(end);
 end
-%% 3) Find Optimal Lambdas for Both Hybrid Methods
-k_gcv = 20; % Iteration for GCV function evaluation
+%% Optimal Lambdas for Both Hybrid Methods
+k_gcv = 20; 
 m = size(A,1);
 options = optimset('Display', 'off', 'TolX', 1e-8);
-% Optimal Lambda for Hybrid AB-GMRES
+ 
 gcv_handle_ab = @(lambda) gcv_function(lambda, A, B_pert, b, m, k_gcv, 'ab');
 [lambda_gcv_ab, ~] = fminbnd(gcv_handle_ab, 1e-9, 1e-1, options);
 [min_err_ab, idx_true_opt_ab] = min(err_norms_ab);
 lambda_true_optimal_ab = lambda_range(idx_true_opt_ab);
 fprintf(' Hybrid AB -> GCV Optimal: %.4e, True Optimal: %.4e\n', lambda_gcv_ab, lambda_true_optimal_ab);
-% Optimal Lambda for Hybrid BA-GMRES
+ 
 gcv_handle_ba = @(lambda) gcv_function(lambda, A, B_pert, b, m, k_gcv, 'ba');
 [lambda_gcv_ba, ~] = fminbnd(gcv_handle_ba, 1e-9, 1e-1, options);
 [min_err_ba, idx_true_opt_ba] = min(err_norms_ba);
 lambda_true_optimal_ba = lambda_range(idx_true_opt_ba);
 fprintf('Hybrid BA -> GCV Optimal: %.4e, True Optimal: %.4e\n', lambda_gcv_ba, lambda_true_optimal_ba);
-%% 4) Generate Figure 1: Hybrid AB-GMRES
+
+
 figure('Name', 'Regularization Analysis (Hybrid AB-GMRES)', 'Position', [100 100 1100 500]);
-% L-Curve Plot for AB
 subplot(1, 2, 1);
 loglog(res_norms_ab, sol_norms_ab, 'b-o', 'LineWidth', 1.5, 'DisplayName', 'L-Curve');
 hold on;
@@ -69,8 +61,8 @@ xlabel('Relative Residual Norm ||b - Ax_{\lambda}|| / ||b||');
 ylabel('Solution Norm ||x_{\lambda}||');
 title('L-Curve (Hybrid AB-GMRES)');
 legend('Location', 'SouthEast');
-set(gca, 'FontSize', 12);
-% Error vs. Lambda Plot for AB
+set(gca, 'FontSize', 12); 
+
 subplot(1, 2, 2);
 loglog(lambda_range, err_norms_ab, 'b-o', 'LineWidth', 1.5, 'DisplayName', 'Error Curve');
 hold on;
@@ -82,9 +74,9 @@ ylabel('Relative Error Norm ||x_{\lambda} - x_{true}|| / ||x_{true}||');
 title('Error vs. Lambda (Hybrid AB-GMRES)');
 legend('Location', 'Best');
 set(gca, 'FontSize', 12);
-%% 5) Generate Figure 2: Hybrid BA-GMRES
+
 figure('Name', 'Regularization Analysis (Hybrid BA-GMRES)', 'Position', [150 150 1100 500]);
-% L-Curve Plot for BA
+ 
 subplot(1, 2, 1);
 loglog(res_norms_ba, sol_norms_ba, 'm-x', 'LineWidth', 1.5, 'DisplayName', 'L-Curve');
 hold on;
@@ -97,7 +89,8 @@ ylabel('Solution Norm ||x_{\lambda}||');
 title('L-Curve (Hybrid BA-GMRES)');
 legend('Location', 'SouthEast');
 set(gca, 'FontSize', 12);
-% Error vs. Lambda Plot for BA
+
+% Error vs. Lambda for BA
 subplot(1, 2, 2);
 loglog(lambda_range, err_norms_ba, 'm-x', 'LineWidth', 1.5, 'DisplayName', 'Error Curve');
 hold on;
@@ -109,8 +102,7 @@ ylabel('Relative Error Norm ||x_{\lambda} - x_{true}|| / ||x_{true}||');
 title('Error vs. Lambda (Hybrid BA-GMRES)');
 legend('Location', 'Best');
 set(gca, 'FontSize', 12);
-%% 6) Generate Figure 3: Comparison of Final Hybrid Solutions
-% Solve for each hybrid method using its GCV-optimal lambda
+%%  Comparison of Final Hybrid Solutions 
 x_optimal_ab = ABgmres_hybrid_bounds(A, B_pert, b, x_true, tol, maxit, lambda_gcv_ab, DeltaM_AB);
 x_optimal_ba = BAgmres_hybrid_bounds(A, B_pert, b, x_true, tol, maxit, lambda_gcv_ba, DeltaM_BA);
 
@@ -126,12 +118,10 @@ xlabel('Element Index');
 ylabel('Value');
 legend('show', 'Location', 'northwest');
 axis tight;
-set(gca, 'FontSize', 12);
-%% 7) Generate Figure 4: Comparison of All Four Methods
-% Solve with non-hybrid methods
+set(gca, 'FontSize', 12); 
 solution_nonhybrid_ab = ABgmres_nonhybrid_bounds(A, B_pert, b, x_true, tol, maxit, DeltaM_AB);
 solution_nonhybrid_ba = BAgmres_nonhybrid_bounds(A, B_pert, b, x_true, tol, maxit, DeltaM_BA);
-% Solve with hybrid methods using their GCV-optimal lambda
+ 
 solution_hybrid_ab = x_optimal_ab;
 solution_hybrid_ba = x_optimal_ba;
 figure('Name', 'Final Solution Comparison (All Methods)', 'Position', [250 250, 900, 650]);
@@ -150,4 +140,5 @@ legend('show', 'Location', 'northwest');
 axis tight;
 set(gca, 'FontSize', 12);
 end
+
 
