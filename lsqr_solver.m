@@ -1,7 +1,5 @@
 function [x, error_norm, residual_norm, niters] = lsqr_solver(A, b, x_true, tol, maxit)
-% LSQR_SOLVER Solvesmin||Ax-b||.
 
-    % Initialization
     m = size(A, 1);
     n = size(A, 2);
     x = zeros(n, 1);
@@ -52,4 +50,5 @@ function [x, error_norm, residual_norm, niters] = lsqr_solver(A, b, x_true, tol,
     error_norm = error_norm(1:k);
     residual_norm = residual_norm(1:k); 
     residual_norm(end) = norm(b-A*x)/norm(b);
+
 end
