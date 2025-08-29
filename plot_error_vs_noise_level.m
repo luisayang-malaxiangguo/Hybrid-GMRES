@@ -44,8 +44,7 @@ for i = 1:length(noise_levels)
     lambda_gcv_ba = fminbnd(gcv_handle_ba, 1e-9, 1e-1, options);
     [~, err_hba, ~, ~] = BAgmres_hybrid_bounds(A, B_pert, b_noise, x_true, tol, maxit, lambda_gcv_ba, DeltaM_BA);
     final_errors_hba(i) = err_hba(end);
-    
-    %  Run Non-Hybrid Methods 
+     
     [~, err_nab, ~, ~] = ABgmres_nonhybrid_bounds(A, B_pert, b_noise, x_true, tol, maxit, DeltaM_AB);
     final_errors_nab(i) = err_nab(end);
     
@@ -54,8 +53,7 @@ for i = 1:length(noise_levels)
     
 end
 toc;
-
-%% Plot
+ 
 figure('Name', 'Error vs. Noise Level (All Methods)', 'Position', [300 300 800 600]);
 
 loglog(noise_levels, final_errors_hab, 'b-o', 'LineWidth', 2, 'MarkerSize', 6, 'DisplayName', 'Hybrid AB');
@@ -75,3 +73,4 @@ axis tight;
 ylim([min(final_errors_hab)*0.8, max(final_errors_nba)*1.2]); % Adjust y-axis for better view
 set(gca, 'FontSize', 12);
 end
+
